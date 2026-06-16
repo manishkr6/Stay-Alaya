@@ -16,6 +16,8 @@ import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import ListYourPG from './pages/ListYourPG.jsx';
 import Notifications from './pages/Notifications.jsx';
+import Messages from './pages/Messages.jsx';
+import SavedPGs from './pages/SavedPGs.jsx';
 import TermsOfService from './pages/LegalTerms.jsx';
 import PrivacyPolicy from './pages/LegalPrivacy.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -105,6 +107,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
                 <Notifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
+                <Messages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/saved-pgs"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
+                <SavedPGs />
               </ProtectedRoute>
             }
           />

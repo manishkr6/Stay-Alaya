@@ -29,7 +29,7 @@ async def create_notification(
 
 
 async def unread_count_for_actor(db, *, role: str, user_object_id=None) -> int:
-    query = {"isRead": False}
+    query = {"isRead": False, "type": {"$ne": "CHAT_MESSAGE"}}
     if role == "admin":
         query["isAdminNotification"] = True
     else:

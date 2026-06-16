@@ -16,6 +16,9 @@ async def get_notifications_controller(db, current_user, query):
         filter_query["isAdminNotification"] = False
         filter_query["userId"] = user_oid
 
+    # Chat unread is shown in Messages, not Notifications.
+    filter_query["type"] = {"$ne": "CHAT_MESSAGE"}
+
     if query.type and query.type != "ALL":
         filter_query["type"] = query.type
     if query.isRead is not None:
@@ -40,7 +43,7 @@ async def get_notifications_controller(db, current_user, query):
 
 
 async def mark_all_read_controller(db, current_user):
-    query = {"isRead": False}
+    query = {"isRead": False, "type": {"$ne": "CHAT_MESSAGE"}}
     if current_user["role"] == "admin":
         query["isAdminNotification"] = True
     else:

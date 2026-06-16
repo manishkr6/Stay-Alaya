@@ -59,7 +59,7 @@ async def signup_controller(db, payload):
     html = build_otp_email_html(user.get("name"), otp, "signup")
     email_sent = True
     try:
-        await send_email(to=email, subject="Sikkim PG Finder - Signup OTP", html=html)
+        await send_email(to=email, subject="Stay Alaya - Signup OTP", html=html)
     except Exception:
         email_sent = False
 
@@ -163,7 +163,7 @@ async def resend_otp_controller(db, payload):
     try:
         await send_email(
             to=email,
-            subject=f"Sikkim PG Finder - {payload.purpose.value.capitalize()} OTP",
+            subject=f"Stay Alaya - {payload.purpose.value.capitalize()} OTP",
             html=html,
         )
     except Exception:
@@ -211,15 +211,15 @@ async def forgot_password_controller(db, payload):
     reset_url = f"{settings.client_url}/reset-password/{raw_token}"
     html = f"""
     <div style=\"font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px;\">
-      <h2 style=\"color: #4F46E5;\">Reset Your Password</h2>
-      <p>You requested a password reset for your Sikkim PG Finder account.</p>
-      <a href=\"{reset_url}\" style=\"display:inline-block;background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;\">Reset Password</a>
-      <p style=\"color:#666;font-size:13px;\">If you didn't request this, ignore this email.</p>
+        <h2 style=\"color: #4F46E5;\">Reset Your Password</h2>
+        <p>You requested a password reset for your Stay Alaya account.</p>
+        <a href=\"{reset_url}\" style=\"display:inline-block;background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;\">Reset Password</a>
+        <p style=\"color:#666;font-size:13px;\">If you didn't request this, ignore this email.</p>
     </div>
     """
 
     try:
-        await send_email(to=email, subject="Sikkim PG Finder - Password Reset", html=html)
+        await send_email(to=email, subject="Stay Alaya - Password Reset", html=html)
     except Exception as exc:
         await db[collections.USERS].update_one(
             {"_id": user["_id"]},
@@ -259,11 +259,12 @@ def build_otp_email_html(name: str | None, otp: str, purpose: str) -> str:
     ttl = get_settings().otp_expires_minutes
     return f"""
     <div style=\"font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px;\">
-      <h2 style=\"color: #4F46E5;\">{heading}</h2>
-      <p>Hi {name or 'there'},</p>
-      <p>{body}</p>
-      <div style=\"font-size:30px;font-weight:700;letter-spacing:8px;margin:20px 0;color:#111827;\">{otp}</div>
-      <p>This OTP is valid for <strong>{ttl} minutes</strong>.</p>
+        <h2 style=\"color: #4F46E5;\">{heading}</h2>
+        <p>Hi {name or 'there'},</p>
+        <p>{body}</p>
+        <div style=\"font-size:30px;font-weight:700;letter-spacing:8px;margin:20px 0;color:#111827;\">{otp}</div>
+        <p>This OTP is valid for <strong>{ttl} minutes</strong>.</p>
+        <p style=\"color:#666;font-size:13px;margin-top:12px;\">This message is from Stay Alaya.</p>
     </div>
     """
 

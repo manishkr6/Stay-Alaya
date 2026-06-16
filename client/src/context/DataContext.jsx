@@ -15,8 +15,9 @@ export function DataProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
-  const HAS_BACKEND = !!import.meta.env.VITE_API_URL;
+  const HAS_BACKEND = import.meta.env.DEV ? true : !!import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (!HAS_BACKEND) return;
@@ -174,6 +175,14 @@ export function DataProvider({ children }) {
     setUnreadCount(unreadRes.data?.count || 0);
   }, [HAS_BACKEND, currentUser?.id]);
 
+  const fetchChatUnreadCount = useCallback(async () => {
+    if (!HAS_BACKEND || !currentUser?.id) return;
+    const res = await api.get('/chat/conversations');
+    const conversations = res.data?.data || [];
+    const total = conversations.reduce((sum, c) => sum + Number(c.unreadCount || 0), 0);
+    setChatUnreadCount(total);
+  }, [HAS_BACKEND, currentUser?.id]);
+
   const fetchAdminData = useCallback(async () => {
     if (!HAS_BACKEND || currentUser?.role !== 'admin') return;
 
@@ -228,6 +237,8 @@ export function DataProvider({ children }) {
         if (currentUser?.id) await fetchSavedPgs();
         if (cancelled) return;
         if (currentUser?.id) await fetchNotifications();
+        if (cancelled) return;
+        if (currentUser?.id) await fetchChatUnreadCount();
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('Data sync failed:', e?.message || e);
@@ -237,7 +248,16 @@ export function DataProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [HAS_BACKEND, currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications]);
+  }, [HAS_BACKEND, currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications, fetchChatUnreadCount]);
+
+  useEffect(() => {
+    if (!HAS_BACKEND || !currentUser?.id) return;
+    const timer = setInterval(() => {
+      fetchNotifications().catch(() => {});
+      fetchChatUnreadCount().catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [HAS_BACKEND, currentUser?.id, fetchNotifications, fetchChatUnreadCount]);
 
   // ── PG Queries ──
   const getApprovedPGs = useCallback(
@@ -458,6 +478,7 @@ export function DataProvider({ children }) {
   }, [HAS_BACKEND, fetchNotifications]);
 
   const getUnreadCount = useCallback(() => unreadCount, [unreadCount]);
+  const getChatUnreadCount = useCallback(() => chatUnreadCount, [chatUnreadCount]);
 
   return (
     <DataContext.Provider value={{
@@ -470,7 +491,7 @@ export function DataProvider({ children }) {
       addReview, getPGReviews,
       reportPG,
       approveOwner, blockUser, requestOwner,
-      markNotificationsRead, markOneRead, getUnreadCount,
+      markNotificationsRead, markOneRead, getUnreadCount, getChatUnreadCount,
     }}>
       {children}
     </DataContext.Provider>

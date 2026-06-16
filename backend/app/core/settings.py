@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    app_name: str = "Sikkim PG Finder API"
+    app_name: str = "Stay Alaya API"
     app_version: str = "1.0.0"
     environment: str = "development"
 

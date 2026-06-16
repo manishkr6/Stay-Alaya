@@ -1,4 +1,4 @@
-# 🏔️ Sikkim PG Finder
+# 🏔️ Stay Alaya
 
 A full-stack PG listing and discovery platform for Sikkim, India.
 
@@ -17,11 +17,12 @@ npm run dev
 Open → http://localhost:5173
 
 ### Demo Login Credentials
-| Role  | Email                  | Password  |
-|-------|------------------------|-----------|
-| Admin | admin@sikkimpg.com     | admin123  |
-| Owner | owner@sikkimpg.com     | owner123  |
-| User  | user@sikkimpg.com      | user123   |
+
+| Role  | Email              | Password |
+| ----- | ------------------ | -------- |
+| Admin | admin@sikkimpg.com | admin123 |
+| Owner | owner@sikkimpg.com | owner123 |
+| User  | user@sikkimpg.com  | user123  |
 
 ---
 
@@ -40,12 +41,14 @@ sikkim-pg-finder/
 ### Step 1 — Set up MongoDB
 
 **Option A: MongoDB Atlas (Free Cloud)**
+
 1. Go to https://www.mongodb.com/atlas
 2. Create a free account and cluster
 3. Click **Connect → Drivers** and copy the URI:
    `mongodb+srv://<user>:<pass>@cluster0.xxxxx.mongodb.net/sikkimpgfinder`
 
 **Option B: Local MongoDB**
+
 1. Install MongoDB Community: https://www.mongodb.com/try/download/community
 2. Start it: `mongod --dbpath /data/db`
 3. URI: `mongodb://localhost:27017/sikkimpgfinder`
@@ -70,6 +73,7 @@ cp .env.example .env
 ```
 
 Edit `server/.env`:
+
 ```env
 PORT=5000
 MONGODB_URI=mongodb+srv://youruser:yourpass@cluster0.xxxxx.mongodb.net/sikkimpgfinder
@@ -89,6 +93,7 @@ SMTP_PASS=your_gmail_app_password
 ```
 
 > **JWT_SECRET tip**: Generate a strong secret:
+>
 > ```bash
 > node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 > ```
@@ -116,6 +121,7 @@ cp .env.example .env
 ```
 
 Edit `client/.env`:
+
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
@@ -132,33 +138,34 @@ The app now uses the real backend instead of mock data.
 
 ### `server/.env`
 
-| Variable               | Description                        | Required |
-|------------------------|------------------------------------|----------|
-| `PORT`                 | Server port (default 5000)         | No       |
-| `MONGODB_URI`          | MongoDB connection string          | ✅ Yes   |
-| `JWT_SECRET`           | Secret key for JWT signing         | ✅ Yes   |
-| `JWT_EXPIRES_IN`       | Token expiry (e.g. `7d`, `30d`)    | No       |
-| `CLOUDINARY_CLOUD_NAME`| Cloudinary cloud name              | ✅ Yes   |
-| `CLOUDINARY_API_KEY`   | Cloudinary API key                 | ✅ Yes   |
-| `CLOUDINARY_API_SECRET`| Cloudinary API secret              | ✅ Yes   |
-| `CLIENT_URL`           | Frontend URL for CORS              | ✅ Yes   |
-| `SMTP_HOST`            | SMTP host for emails               | No       |
-| `SMTP_PORT`            | SMTP port (587 for TLS)            | No       |
-| `SMTP_USER`            | SMTP username/email                | No       |
-| `SMTP_PASS`            | SMTP password / app password       | No       |
-| `NODE_ENV`             | `development` or `production`      | No       |
+| Variable                | Description                     | Required |
+| ----------------------- | ------------------------------- | -------- |
+| `PORT`                  | Server port (default 5000)      | No       |
+| `MONGODB_URI`           | MongoDB connection string       | ✅ Yes   |
+| `JWT_SECRET`            | Secret key for JWT signing      | ✅ Yes   |
+| `JWT_EXPIRES_IN`        | Token expiry (e.g. `7d`, `30d`) | No       |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name           | ✅ Yes   |
+| `CLOUDINARY_API_KEY`    | Cloudinary API key              | ✅ Yes   |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret           | ✅ Yes   |
+| `CLIENT_URL`            | Frontend URL for CORS           | ✅ Yes   |
+| `SMTP_HOST`             | SMTP host for emails            | No       |
+| `SMTP_PORT`             | SMTP port (587 for TLS)         | No       |
+| `SMTP_USER`             | SMTP username/email             | No       |
+| `SMTP_PASS`             | SMTP password / app password    | No       |
+| `NODE_ENV`              | `development` or `production`   | No       |
 
 ### `client/.env`
 
-| Variable        | Description                             | Required       |
-|-----------------|-----------------------------------------|----------------|
-| `VITE_API_URL`  | Backend API base URL                    | No (uses mock) |
+| Variable       | Description          | Required       |
+| -------------- | -------------------- | -------------- |
+| `VITE_API_URL` | Backend API base URL | No (uses mock) |
 
 ---
 
 ## 📡 API Endpoints
 
 ### Auth
+
 ```
 POST   /api/auth/signup
 POST   /api/auth/login
@@ -169,12 +176,14 @@ PUT    /api/auth/reset-password/:token
 ```
 
 ### PGs (Public)
+
 ```
 GET    /api/pgs                 (filters: city, minPrice, maxPrice, roomType, gender, amenities, sort, page)
 GET    /api/pgs/:id
 ```
 
 ### Owner
+
 ```
 GET    /api/owner/pgs           🔒 owner
 POST   /api/owner/pgs           🔒 owner  (multipart/form-data with images[])
@@ -183,6 +192,7 @@ DELETE /api/owner/pgs/:id       🔒 owner
 ```
 
 ### Admin
+
 ```
 GET    /api/admin/stats         🔒 admin
 GET    /api/admin/pgs           🔒 admin
@@ -197,6 +207,7 @@ PUT    /api/admin/reports/:id   🔒 admin
 ```
 
 ### User
+
 ```
 POST   /api/user/save/:pgId     🔒
 GET    /api/user/saved          🔒
@@ -206,6 +217,7 @@ PUT    /api/user/change-password 🔒
 ```
 
 ### Reviews
+
 ```
 GET    /api/reviews/:pgId
 POST   /api/reviews/:pgId       🔒
@@ -213,6 +225,7 @@ DELETE /api/reviews/:reviewId   🔒
 ```
 
 ### Notifications
+
 ```
 GET    /api/notifications       🔒 admin
 PUT    /api/notifications/mark-read  🔒 admin
@@ -221,6 +234,7 @@ PUT    /api/notifications/:id/read  🔒 admin
 ```
 
 ### Reports
+
 ```
 POST   /api/reports/:pgId       🔒
 ```
@@ -230,21 +244,23 @@ POST   /api/reports/:pgId       🔒
 ## 🔌 Real-time Socket.io Events
 
 ### Client → Server
+
 ```js
-socket.emit('join_admin')           // Admin joins admin room
-socket.emit('join_user', userId)    // User joins personal room
+socket.emit("join_admin"); // Admin joins admin room
+socket.emit("join_user", userId); // User joins personal room
 ```
 
 ### Server → Client
+
 ```js
 // To admin room
-socket.on('new_notification', { notification, unreadCount })
+socket.on("new_notification", { notification, unreadCount });
 
 // To specific owner
-socket.on('pg_status_update', { pgId, title, status, rejectionReason })
+socket.on("pg_status_update", { pgId, title, status, rejectionReason });
 
 // To specific user
-socket.on('owner_approved', { message })
+socket.on("owner_approved", { message });
 ```
 
 ---
@@ -252,6 +268,7 @@ socket.on('owner_approved', { message })
 ## 🏗️ Tech Stack
 
 ### Frontend
+
 - React 18 + Vite
 - Tailwind CSS + @tailwindcss/forms
 - React Router DOM v6
@@ -261,6 +278,7 @@ socket.on('owner_approved', { message })
 - Axios + Socket.io-client
 
 ### Backend
+
 - Node.js + Express.js
 - MongoDB + Mongoose
 - JWT + bcryptjs
@@ -274,12 +292,14 @@ socket.on('owner_approved', { message })
 ## 📦 Production Deployment
 
 ### Backend (e.g. Railway, Render, Fly.io)
+
 1. Push `server/` folder
 2. Set all environment variables in dashboard
 3. Build command: `npm install`
 4. Start command: `npm start`
 
 ### Frontend (e.g. Vercel, Netlify)
+
 1. Push `client/` folder
 2. Set `VITE_API_URL` to your deployed backend URL
 3. Build command: `npm run build`

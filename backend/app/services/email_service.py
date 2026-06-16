@@ -12,7 +12,7 @@ async def send_email(*, to: str, subject: str, html: str) -> None:
 
     message = MIMEMultipart("alternative")
     message["Subject"] = subject
-    message["From"] = f"Sikkim PG Finder <{settings.smtp_user}>"
+    message["From"] = f"Stay Alaya <{settings.smtp_user}>"
     message["To"] = to
     message.attach(MIMEText(html, "html"))
 

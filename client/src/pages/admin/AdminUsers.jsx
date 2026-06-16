@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Search, Check, Ban, UserCheck } from 'lucide-react';
+import { Search, Check, Ban, UserCheck, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminUsers() {
   const { approveOwner, blockUser } = useData();
   const { users } = useData();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
 
@@ -146,6 +148,12 @@ export default function AdminUsers() {
                         <button onClick={() => handleApproveOwner(user.id)}
                           className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-medium transition-colors">
                           <UserCheck size={12} /> Approve Owner
+                        </button>
+                      )}
+                      {user.id !== currentUser?.id && user.role !== 'admin' && (
+                        <button onClick={() => navigate(`/messages?userId=${user.id}`)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-primary-50 text-primary-700 hover:bg-primary-100 rounded-lg text-xs font-medium transition-colors">
+                          <MessageSquare size={12} /> Chat
                         </button>
                       )}
                       {user.id !== currentUser?.id && user.role !== 'admin' && (

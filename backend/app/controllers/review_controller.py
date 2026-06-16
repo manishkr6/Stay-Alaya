@@ -60,6 +60,9 @@ async def add_review_controller(db, pg_id: str, payload, current_user):
         raise AppError(status_code=400, message="Can only review approved PGs")
 
     user_object_id = to_object_id(current_user["id"])
+    if str(pg.get("owner")) == current_user["id"]:
+        raise AppError(status_code=403, message="You can't review your own PG")
+
     existing = await db[collections.REVIEWS].find_one({"pg": pg_object_id, "user": user_object_id})
     if existing:
         raise AppError(status_code=400, message="You have already reviewed this PG")

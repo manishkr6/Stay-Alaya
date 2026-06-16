@@ -79,6 +79,11 @@ export default function PGDetails() {
   const isSaved = savedPGs.some((s) => s.id === pg.id);
   const reviews = getPGReviews(pg.id);
   const owner = users.find((u) => u.id === pg.ownerId);
+  const isOwnPG = !!currentUser?.id && currentUser.id === pg.ownerId;
+  const canReview =
+    !!currentUser &&
+    !isOwnPG &&
+    (currentUser.role === "user" || currentUser.role === "owner");
   const formatPrice = (p) => new Intl.NumberFormat("en-IN").format(p);
 
   const handleSave = () => {
@@ -114,6 +119,10 @@ export default function PGDetails() {
       navigate("/login");
       return;
     }
+    if (isOwnPG) {
+      toast.error("You can't review your own PG");
+      return;
+    }
     if (reviewComment.trim().length < 10) {
       toast.error("Comment must be at least 10 characters");
       return;
@@ -131,7 +140,9 @@ export default function PGDetails() {
       setReviewRating(5);
       toast.success("Review submitted!");
     } catch (e) {
-      toast.error(e.message);
+      toast.error(
+        e?.response?.data?.message || e.message || "Failed to submit review",
+      );
     }
   };
 
@@ -322,16 +333,19 @@ export default function PGDetails() {
                         </div>
                       </div>
                     )}
-                    {currentUser &&
-                      (currentUser.role === "user" ||
-                        currentUser.role === "owner") && (
-                        <button
-                          onClick={() => setReviewOpen(true)}
-                          className="btn-primary text-sm mb-6"
-                        >
-                          Write a Review
-                        </button>
-                      )}
+                    {canReview && (
+                      <button
+                        onClick={() => setReviewOpen(true)}
+                        className="btn-primary text-sm mb-6"
+                      >
+                        Write a Review
+                      </button>
+                    )}
+                    {isOwnPG && (
+                      <p className="text-slate-500 text-sm mb-6">
+                        You can't review your own listed PG.
+                      </p>
+                    )}
                     <div className="space-y-4">
                       {reviews.map((r) => (
                         <div
@@ -454,6 +468,22 @@ export default function PGDetails() {
                   >
                     <MessageCircle size={16} /> WhatsApp
                   </a>
+                  <button
+                    onClick={() => {
+                      if (!currentUser) {
+                        navigate("/login");
+                        return;
+                      }
+                      if (!owner?.id) {
+                        toast.error("Owner details not available");
+                        return;
+                      }
+                      navigate(`/messages?userId=${owner.id}&pgId=${pg.id}`);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-primary-300 text-primary-700 hover:bg-primary-50 font-medium py-3 rounded-xl transition-colors text-sm"
+                  >
+                    <MessageCircle size={16} /> Chat in App
+                  </button>
                 </div>
               </div>
               <hr className="border-slate-100" />
