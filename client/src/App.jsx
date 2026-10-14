@@ -16,7 +16,6 @@ import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import ListYourPG from './pages/ListYourPG.jsx';
 import Notifications from './pages/Notifications.jsx';
-import Messages from './pages/Messages.jsx';
 import SavedPGs from './pages/SavedPGs.jsx';
 import TermsOfService from './pages/LegalTerms.jsx';
 import PrivacyPolicy from './pages/LegalPrivacy.jsx';
@@ -44,12 +43,12 @@ function ScrollToTop() {
 
 // Pages that use the standard Navbar + Footer layout
 const ADMIN_PATHS = ['/admin'];
-const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/forgot-password'];
+const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password'];
 
 function AppLayout({ children }) {
   const { pathname } = useLocation();
   const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p));
-  const isAuth = AUTH_PATHS.includes(pathname) || pathname.startsWith('/reset-password/');
+  const isAuth = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
   if (isAdmin) {
     return (
@@ -98,6 +97,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<OtpVerification />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/list-your-pg" element={<ListYourPG />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
@@ -107,14 +107,6 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
                 <Notifications />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/messages"
-            element={
-              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
-                <Messages />
               </ProtectedRoute>
             }
           />

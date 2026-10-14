@@ -13,6 +13,11 @@ const TYPE_META = {
   OWNER_REQUEST: { icon: '🔑', label: 'Owner Request', color: 'bg-purple-100 text-purple-700' },
   OWNER_APPROVED: { icon: '✅', label: 'Owner Approved', color: 'bg-emerald-100 text-emerald-700' },
   PG_STATUS_UPDATE: { icon: '🔔', label: 'PG Status', color: 'bg-indigo-100 text-indigo-700' },
+  PHONE_UPDATE: { icon: '📱', label: 'Phone Update', color: 'bg-emerald-100 text-emerald-700' },
+  PROFILE_UPDATE: { icon: '👤', label: 'Profile Update', color: 'bg-teal-100 text-teal-700' },
+  REVIEW: { icon: '⭐', label: 'Review', color: 'bg-amber-100 text-amber-700' },
+  USER_ROLE: { icon: '🛡️', label: 'Role Update', color: 'bg-purple-100 text-purple-700' },
+  info: { icon: 'ℹ️', label: 'Notice', color: 'bg-blue-100 text-blue-700' },
 };
 
 export default function Notifications() {

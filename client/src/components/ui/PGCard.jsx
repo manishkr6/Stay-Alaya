@@ -39,7 +39,9 @@ export default function PGCard({ pg, showStatus = false }) {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/45 via-slate-900/5 to-transparent opacity-80" />
 
         <div className="absolute top-3 left-3">
-          {pg.status === 'approved' && <VerifiedBadge size="sm" />}
+          {pg.status === 'approved' && (
+            <VerifiedBadge isVerified={pg.isVerified} size="sm" />
+          )}
         </div>
 
         {showStatus && (

@@ -4,13 +4,14 @@ import { useData } from "../../hooks/useData";
 import { formatDistanceToNow } from "../../utils/time";
 
 const TYPE_ICONS = {
-  ADD_PG: { icon: "[ADD]", color: "bg-blue-100 text-blue-700" },
-  UPDATE_PG: { icon: "[UPD]", color: "bg-amber-100 text-amber-700" },
-  DELETE_PG: { icon: "[DEL]", color: "bg-red-100 text-red-700" },
-  REPORT_PG: { icon: "[RPT]", color: "bg-red-100 text-red-700" },
-  FEEDBACK: { icon: "[FDB]", color: "bg-indigo-100 text-indigo-700" },
-  USER_SIGNUP: { icon: "[USR]", color: "bg-emerald-100 text-emerald-700" },
-  OWNER_REQUEST: { icon: "[OWN]", color: "bg-purple-100 text-purple-700" },
+  ADD_PG: { icon: "🏠", color: "bg-blue-100 text-blue-700" },
+  UPDATE_PG: { icon: "✏️", color: "bg-amber-100 text-amber-700" },
+  DELETE_PG: { icon: "🗑️", color: "bg-red-100 text-red-700" },
+  REPORT_PG: { icon: "⚠️", color: "bg-red-100 text-red-700" },
+  FEEDBACK: { icon: "💬", color: "bg-indigo-100 text-indigo-700" },
+  USER_SIGNUP: { icon: "👤", color: "bg-emerald-100 text-emerald-700" },
+  OWNER_REQUEST: { icon: "🔑", color: "bg-purple-100 text-purple-700" },
+  REVIEW: { icon: "⭐", color: "bg-amber-100 text-amber-700" },
 };
 
 export default function AdminDashboard() {

@@ -9,8 +9,12 @@ export function ProtectedRoute({ children, allowedRoles }) {
       <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!currentUser) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(currentUser.role)) return <Navigate to="/" replace />;
+  if (!currentUser || currentUser.isBlocked) return <Navigate to="/login" replace />;
+  if (allowedRoles) {
+    const userRole = currentUser.role === 'user' ? 'student' : currentUser.role;
+    const isAllowed = allowedRoles.some((r) => (r === 'user' ? 'student' : r) === userRole);
+    if (!isAllowed) return <Navigate to="/" replace />;
+  }
   return children;
 }
 

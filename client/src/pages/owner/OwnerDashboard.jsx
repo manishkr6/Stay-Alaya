@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Building2, CheckCircle, Clock, Home, UserCog, MessagesSquare, Heart } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building2, CheckCircle, Clock, Home, UserCog, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import StatusPill from '../../components/ui/StatusPill';
+import VerifiedBadge from '../../components/ui/VerifiedBadge';
 import Modal from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/index.jsx';
-import api from '../../utils/api';
+import { supabase } from '../../lib/supabaseClient';
 
 const TABS = [
   { id: 'pgs', label: 'My PGs', icon: Building2 },
@@ -16,16 +17,16 @@ const TABS = [
 
 export default function OwnerDashboard() {
   const { currentUser, updateCurrentUser } = useAuth();
-  const { getOwnerPGs, deletePG, getChatUnreadCount } = useData();
+  const { getOwnerPGs, deletePG, createNotification } = useData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('pgs');
   const [deleteId, setDeleteId] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState(currentUser?.name || '');
+  const [profilePhone, setProfilePhone] = useState(currentUser?.phone || '');
 
   const myPGs = getOwnerPGs(currentUser?.id);
-  const chatUnreadCount = getChatUnreadCount();
   const stats = {
     total: myPGs.length,
     approved: myPGs.filter(p => p.status === 'approved').length,
@@ -50,18 +51,39 @@ export default function OwnerDashboard() {
 
   const handleUpdateProfile = async () => {
     const trimmedName = profileName.trim();
+    const trimmedPhone = profilePhone.trim();
     if (trimmedName.length < 2) {
       toast.error('Please enter a valid name');
       return;
     }
+    if (trimmedPhone && !/^[0-9+\s\-()]{7,15}$/.test(trimmedPhone)) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
     try {
-      const { data } = await api.put('/user/profile', { name: trimmedName });
-      const updatedUser = data?.data;
-      if (updatedUser) updateCurrentUser(updatedUser);
+      await updateCurrentUser({
+        name: trimmedName,
+        phone: trimmedPhone,
+      });
+
+      if (trimmedPhone && trimmedPhone !== currentUser?.phone) {
+        await createNotification({
+          userId: currentUser.id,
+          message: `Your contact phone number was updated to ${trimmedPhone}.`,
+          type: 'PHONE_UPDATE',
+        });
+      } else {
+        await createNotification({
+          userId: currentUser.id,
+          message: 'Your profile details were updated.',
+          type: 'PROFILE_UPDATE',
+        });
+      }
+
       setProfileOpen(false);
-      toast.success(data?.message || 'Profile updated');
+      toast.success('Profile and phone number updated');
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Failed to update profile');
+      toast.error(e?.message || 'Failed to update profile');
     }
   };
 
@@ -74,17 +96,6 @@ export default function OwnerDashboard() {
             <p className="text-slate-500 text-sm mt-1">Manage your PG properties</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/messages')}
-              className="relative px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <MessagesSquare size={15} /> Messages
-              {chatUnreadCount > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-primary-600 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                  {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                </span>
-              )}
-            </button>
             <button
               onClick={() => navigate('/saved-pgs')}
               className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center gap-2"
@@ -149,7 +160,12 @@ export default function OwnerDashboard() {
                       <h3 className="font-semibold text-slate-900 truncate">{pg.title}</h3>
                       <p className="text-slate-500 text-xs mt-0.5">{pg.location.area}, {pg.location.city}</p>
                     </div>
-                    <StatusPill status={pg.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={pg.status} />
+                      {pg.status === 'approved' && (
+                        <VerifiedBadge isVerified={pg.isVerified} size="sm" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-primary-600 font-semibold text-sm">₹{pg.price.toLocaleString('en-IN')}/mo</span>
@@ -205,6 +221,16 @@ export default function OwnerDashboard() {
               onChange={(e) => setProfileName(e.target.value)}
               className="input-field text-sm"
               placeholder="Enter your full name"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              value={profilePhone}
+              onChange={(e) => setProfilePhone(e.target.value)}
+              className="input-field text-sm"
+              placeholder="e.g. +91 9876543210"
             />
           </div>
           <div>

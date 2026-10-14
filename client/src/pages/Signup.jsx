@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff, CheckCircle2, Mail, User, Lock } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, Mail, User, Lock, MailCheck, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../hooks/useAuth";
 
@@ -19,9 +19,18 @@ function getStrength(pwd) {
 }
 
 export default function Signup() {
-  const { signup } = useAuth();
+  const { signup, currentUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [showPass, setShowPass] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState(null);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      if (currentUser.role === "admin") navigate("/admin", { replace: true });
+      else if (currentUser.role === "owner") navigate("/owner", { replace: true });
+      else navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, currentUser, navigate]);
   const {
     register,
     handleSubmit,
@@ -33,18 +42,31 @@ export default function Signup() {
 
   const onSubmit = async ({ name, email, password }) => {
     try {
-      const result = await signup(name, email, password);
-      if (result?.requiresOtp) {
-        toast.success(result?.message || "OTP sent to your email");
-        navigate("/verify-otp", {
-          state: {
-            email: result.email || email,
-            purpose: "signup",
-          },
-        });
-      }
+      await signup(name, email, password);
+      setSubmittedEmail(email);
+      toast.success(
+        "Verification email sent! Please check your inbox and click the confirm link to activate your account.",
+        { duration: 8000 }
+      );
     } catch (e) {
-      toast.error(e?.response?.data?.message || e.message || "Signup failed");
+      const msg = e?.message || "Signup failed";
+      if (
+        msg.toLowerCase().includes("already registered") ||
+        msg.toLowerCase().includes("already exists")
+      ) {
+        toast.error("This email is already registered. Please sign in.");
+        navigate("/login");
+      } else if (
+        msg.toLowerCase().includes("rate limit") ||
+        msg.toLowerCase().includes("security purposes")
+      ) {
+        setSubmittedEmail(email);
+        toast.error(
+          "Confirmation link was already sent! Please check your inbox or wait a moment before requesting another."
+        );
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -108,14 +130,68 @@ export default function Signup() {
 
         <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10">
           <div className="w-full max-w-md rounded-3xl border border-white/70 lg:border-slate-200 bg-white/95 shadow-2xl lg:shadow-xl backdrop-blur-md p-6 sm:p-8 mt-12">
-            <div className="mb-7">
-              <h1 className="font-display text-3xl font-bold text-slate-900">
-                Create Account
-              </h1>
-              <p className="text-slate-500 text-sm mt-1">
-                Join Stay Alaya today
-              </p>
-            </div>
+            {submittedEmail ? (
+              <div className="text-center py-2 animate-fade-in">
+                <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm ring-8 ring-primary-50/50">
+                  <MailCheck size={32} />
+                </div>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
+                  Confirm Your Email
+                </h1>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                  We have sent a verification email to:
+                  <br />
+                  <span className="font-semibold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg inline-block mt-2 break-all border border-slate-200">
+                    {submittedEmail}
+                  </span>
+                </p>
+
+                <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 sm:p-5 text-left mb-6 space-y-2.5">
+                  <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs uppercase tracking-wide">
+                    <Mail size={15} className="text-amber-700" />
+                    How to activate your account:
+                  </div>
+                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                    1. Open your <strong>Gmail / Email inbox</strong> for <span className="font-medium">{submittedEmail}</span>.
+                  </p>
+                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                    2. Open the email with subject <strong>&ldquo;Confirm your email address&rdquo;</strong> from <strong>Supabase Auth</strong>.
+                  </p>
+                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                    3. Click the <strong>&ldquo;Confirm email address&rdquo;</strong> link in that email.
+                  </p>
+                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                    4. Once confirmed, you can log in to Stay Alaya right away!
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Link
+                    to="/login"
+                    className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2 font-medium"
+                  >
+                    Proceed to Sign In <ArrowRight size={16} />
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => setSubmittedEmail(null)}
+                    className="text-xs text-slate-500 hover:text-slate-800 transition-colors block w-full py-1"
+                  >
+                    Entered the wrong email? <span className="underline">Change email</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-7">
+                  <h1 className="font-display text-3xl font-bold text-slate-900">
+                    Create Account
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Join Stay Alaya today
+                  </p>
+                </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div>
@@ -288,8 +364,10 @@ export default function Signup() {
                 Sign In
               </Link>
             </p>
-          </div>
-        </section>
+          </>
+        )}
+      </div>
+    </section>
       </div>
     </div>
   );

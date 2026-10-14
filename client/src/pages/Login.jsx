@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import {
   Eye,
@@ -14,10 +14,25 @@ import toast from "react-hot-toast";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, currentUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      if (location.search.includes("verified=true") || location.hash.includes("access_token")) {
+        toast.success("Email confirmed successfully! Welcome to Stay Alaya.", {
+          id: "email-confirmed-toast",
+        });
+      }
+      if (currentUser.role === "admin") navigate("/admin", { replace: true });
+      else if (currentUser.role === "owner") navigate("/owner", { replace: true });
+      else navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, currentUser, navigate, location]);
+
   const {
     register,
     handleSubmit,

@@ -3,15 +3,15 @@ import { Check } from 'lucide-react';
 import { useData } from '../../hooks/useData';
 import { formatDistanceToNow } from '../../utils/time';
 
-const TYPES = ['ALL', 'ADD_PG', 'UPDATE_PG', 'DELETE_PG', 'REPORT_PG', 'FEEDBACK', 'USER_SIGNUP', 'OWNER_REQUEST'];
+const TYPES = ['ALL', 'ADD_PG', 'UPDATE_PG', 'DELETE_PG', 'REPORT_PG', 'USER_SIGNUP', 'OWNER_REQUEST', 'REVIEW'];
 const TYPE_META = {
-  ADD_PG: { icon: '[ADD]', label: 'New PG', color: 'bg-blue-100 text-blue-700' },
-  UPDATE_PG: { icon: '[UPD]', label: 'PG Update', color: 'bg-amber-100 text-amber-700' },
-  DELETE_PG: { icon: '[DEL]', label: 'PG Deleted', color: 'bg-red-100 text-red-700' },
-  REPORT_PG: { icon: '[RPT]', label: 'Report', color: 'bg-red-100 text-red-700' },
-  FEEDBACK: { icon: '[FDB]', label: 'Feedback', color: 'bg-indigo-100 text-indigo-700' },
-  USER_SIGNUP: { icon: '[USR]', label: 'New User', color: 'bg-emerald-100 text-emerald-700' },
-  OWNER_REQUEST: { icon: '[OWN]', label: 'Owner Request', color: 'bg-purple-100 text-purple-700' },
+  ADD_PG: { icon: '🏠', label: 'New PG', color: 'bg-blue-100 text-blue-700' },
+  UPDATE_PG: { icon: '✏️', label: 'PG Update', color: 'bg-amber-100 text-amber-700' },
+  DELETE_PG: { icon: '🗑️', label: 'PG Deleted', color: 'bg-red-100 text-red-700' },
+  REPORT_PG: { icon: '⚠️', label: 'Report', color: 'bg-red-100 text-red-700' },
+  USER_SIGNUP: { icon: '👤', label: 'New User', color: 'bg-emerald-100 text-emerald-700' },
+  OWNER_REQUEST: { icon: '🔑', label: 'Owner Request', color: 'bg-purple-100 text-purple-700' },
+  REVIEW: { icon: '⭐', label: 'Review', color: 'bg-amber-100 text-amber-700' },
 };
 
 export default function AdminNotifications() {

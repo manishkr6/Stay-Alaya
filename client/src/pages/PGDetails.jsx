@@ -222,8 +222,13 @@ export default function PGDetails() {
             <div className="space-y-6">
               <div>
                 {pg.status === "approved" && (
-                  <div className="mb-3">
-                    <VerifiedBadge />
+                  <div className="mb-3 flex items-center gap-2.5 flex-wrap">
+                    <VerifiedBadge isVerified={pg.isVerified} size="md" />
+                    {!pg.isVerified && (
+                      <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                        Ownership documents pending verification
+                      </span>
+                    )}
                   </div>
                 )}
                 <h1 className="font-display text-3xl font-bold text-slate-900 mb-3">
@@ -468,22 +473,6 @@ export default function PGDetails() {
                   >
                     <MessageCircle size={16} /> WhatsApp
                   </a>
-                  <button
-                    onClick={() => {
-                      if (!currentUser) {
-                        navigate("/login");
-                        return;
-                      }
-                      if (!owner?.id) {
-                        toast.error("Owner details not available");
-                        return;
-                      }
-                      navigate(`/messages?userId=${owner.id}&pgId=${pg.id}`);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-primary-300 text-primary-700 hover:bg-primary-50 font-medium py-3 rounded-xl transition-colors text-sm"
-                  >
-                    <MessageCircle size={16} /> Chat in App
-                  </button>
                 </div>
               </div>
               <hr className="border-slate-100" />

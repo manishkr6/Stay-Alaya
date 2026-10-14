@@ -1,13 +1,14 @@
 import { createContext, useState, useCallback, useContext, useEffect } from 'react';
-import api from '../utils/api';
+import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
 import { AuthContext } from './AuthContext';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 export const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
   const { currentUser } = useContext(AuthContext);
 
-  // In backend mode, everything should come from the API (no mocked seed data).
   const [pgs, setPgs] = useState([]);
   const [ownerPgs, setOwnerPgs] = useState([]);
   const [savedPgs, setSavedPgs] = useState([]);
@@ -15,484 +16,826 @@ export function DataProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [chatUnreadCount, setChatUnreadCount] = useState(0);
-
-  const HAS_BACKEND = import.meta.env.DEV ? true : !!import.meta.env.VITE_API_URL;
-
-  useEffect(() => {
-    if (!HAS_BACKEND) return;
-    // Clear previously stored mock/demo data so it never shows in backend mode.
-    localStorage.removeItem('sikkimpg_pgs');
-    localStorage.removeItem('sikkimpg_notifications');
-    localStorage.removeItem('sikkimpg_reviews');
-  }, [HAS_BACKEND]);
-
-  const dateOnly = (value) => {
-    if (!value) return undefined;
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return undefined;
-    return d.toISOString().split('T')[0];
-  };
 
   const mapPG = (pg) => {
-    const id = String(pg.id ?? pg._id);
-    const ownerId = pg.ownerId
-      ? String(pg.ownerId)
-      : pg.owner
-        ? String(pg.owner._id ?? pg.owner.id ?? pg.owner)
-        : '';
+    if (!pg) return null;
+    const id = String(pg.id);
+    const ownerId = String(pg.owner_id || pg.ownerId || '');
+    const ownerProfile = pg.profiles || {};
+
+    const ownerDoc = ownerProfile.kyc_doc_url || (currentUser?.id === ownerId ? currentUser?.kyc_doc_url : null);
+    const ownerIdDoc = ownerProfile.kyc_id_doc_url || (currentUser?.id === ownerId ? currentUser?.kyc_id_doc_url : null);
+    const hasDocuments = Boolean(
+      (pg.kyc_doc_url && pg.kyc_doc_url.trim()) ||
+      (ownerDoc && ownerDoc.trim()) ||
+      (ownerIdDoc && ownerIdDoc.trim())
+    );
 
     return {
       ...pg,
       id,
       ownerId,
-      ownerName: pg.owner?.name,
-      ownerEmail: pg.owner?.email,
-      location: pg.location || { city: '', area: '', address: '' },
+      ownerName: ownerProfile.full_name || pg.ownerName || 'Property Owner',
+      ownerEmail: ownerProfile.email || pg.ownerEmail || '',
+      price: Number(pg.rent ?? pg.price ?? 0),
+      rent: Number(pg.rent ?? pg.price ?? 0),
+      deposit: Number(pg.deposit ?? 0),
+      location: {
+        city: pg.locality || pg.location?.city || 'Gangtok',
+        area: pg.locality || pg.location?.area || 'Central',
+        address: pg.address || pg.location?.address || '',
+      },
+      roomType: pg.room_type || pg.roomType || 'Single',
+      genderPreference: pg.gender_preference || pg.genderPreference || 'Co-ed',
+      amenities: Array.isArray(pg.amenities) ? pg.amenities : [],
       rules: Array.isArray(pg.rules) ? pg.rules : [],
-      createdAt: dateOnly(pg.createdAt),
+      images: Array.isArray(pg.images) ? pg.images : [],
+      contactNumber: pg.contact_number || pg.contactNumber || '+919876543210',
+      averageRating: Number(pg.average_rating || pg.averageRating || 0),
+      totalReviews: Number(pg.total_reviews || pg.totalReviews || 0),
+      status: pg.status || (pg.is_verified ? 'approved' : 'pending'),
+      isVerified: hasDocuments,
+      hasDocuments,
+      isAvailable: pg.is_available !== false,
+      createdAt: pg.created_at ? pg.created_at.split('T')[0] : '',
     };
   };
 
   const mapReview = (r) => ({
-    id: String(r.id ?? r._id),
-    pgId: String(r.pgId ?? r.pg?._id ?? r.pg),
-    userId: String(r.userId ?? r.user?._id ?? r.user?.id ?? r.user),
-    userName: r.userName ?? r.user?.name ?? '',
+    id: String(r.id),
+    pgId: String(r.pg_id || r.pgId),
+    userId: String(r.user_id || r.userId),
+    userName: r.profiles?.full_name || r.userName || 'Student / User',
     rating: Number(r.rating),
     comment: r.comment,
-    createdAt: dateOnly(r.createdAt),
+    createdAt: r.created_at ? r.created_at.split('T')[0] : '',
   });
 
-  const mapNotification = (n) => ({
-    id: String(n.id ?? n._id),
-    message: n.message,
-    type: n.type,
-    userId: n.userId ? String(n.userId._id ?? n.userId.id ?? n.userId) : null,
-    relatedId: n.relatedId ? String(n.relatedId) : null,
-    isRead: !!n.isRead,
-    createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString(),
-  });
+  const mapUser = (u) => {
+    const hasDocs = Boolean(u.kyc_doc_url || u.kyc_id_doc_url);
+    const isOwner = u.role === 'owner';
+    const isApprovedOwner = isOwner || u.kyc_status === 'verified' || (u.kyc_status === 'unverified' && isOwner);
 
-  const mapUser = (u) => ({
-    id: String(u.id ?? u._id),
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    ownerRequestStatus: u.ownerRequestStatus ?? 'none',
-    ownerRequestDetails: u.ownerRequestDetails
-      ? {
-          id: String(u.ownerRequestDetails.id ?? u.ownerRequestDetails._id),
-          phoneNumber: u.ownerRequestDetails.phoneNumber || '',
-          propertyDocumentUrl: u.ownerRequestDetails.propertyDocumentUrl || '',
-          identityDocumentUrl: u.ownerRequestDetails.identityDocumentUrl || '',
-          status: u.ownerRequestDetails.status || '',
-          requestedAt: u.ownerRequestDetails.requestedAt || '',
-        }
-      : null,
-    isBlocked: !!u.isBlocked,
-    avatar: u.avatar,
-  });
-
-  const deriveOwnersFromPgs = (pgList) => {
-    const owners = new Map();
-    for (const pg of pgList) {
-      if (!pg.ownerId) continue;
-      if (!owners.has(pg.ownerId)) {
-        owners.set(pg.ownerId, { id: pg.ownerId, name: pg.ownerName || 'Owner', email: pg.ownerEmail || '' });
-      }
-    }
-    return Array.from(owners.values());
-  };
-
-  const chunkArray = (arr, size) => {
-    const out = [];
-    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-    return out;
+    return {
+      id: String(u.id),
+      name: u.full_name || u.name || 'User',
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role || 'student',
+      ownerRequestStatus: isApprovedOwner ? 'approved' : u.kyc_status || 'none',
+      ownerRequestDetails: (u.kyc_status && u.kyc_status !== 'none') || u.kyc_doc_url || u.kyc_id_doc_url
+        ? {
+            id: String(u.id),
+            phoneNumber: u.phone || '',
+            propertyDocumentUrl: u.kyc_doc_url || '',
+            identityDocumentUrl: u.kyc_id_doc_url || '',
+            hasUploadedDocs: hasDocs,
+            status: u.kyc_status,
+            requestedAt: u.updated_at || u.created_at,
+          }
+        : null,
+      isBlocked: !!u.is_blocked,
+      lastSignIn: u.last_sign_in_at || u.updated_at || u.created_at,
+      createdAt: u.created_at,
+    };
   };
 
   const fetchApprovedPgsAndReviews = useCallback(async () => {
-    if (!HAS_BACKEND) return;
+    try {
+      const { data: pgsData, error: pgsErr } = await supabase
+        .from('pg_listings')
+        .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
+        .eq('is_verified', true)
+        .order('created_at', { ascending: false });
 
-    // 1) Fetch all approved PGs (client filtering depends on having the full list).
-    const limit = 50;
-    let page = 1;
-    let totalPages = 1;
-    const allPgsRaw = [];
+      if (pgsErr) throw pgsErr;
 
-    while (page <= totalPages) {
-      const res = await api.get('/pgs', { params: { page, limit } });
-      const payload = res.data;
-      totalPages = payload.totalPages || 1;
-      allPgsRaw.push(...(payload.data || []));
-      page += 1;
+      const mappedPgs = (pgsData || []).map(mapPG).filter(Boolean);
+      setPgs(mappedPgs);
+
+      // Fetch reviews
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('*, profiles(full_name)')
+        .order('created_at', { ascending: false });
+
+      setReviews((reviewsData || []).map(mapReview));
+    } catch (err) {
+      console.warn('Failed to fetch PGs from Supabase:', err);
     }
-
-    const mappedPgs = allPgsRaw.map(mapPG);
-    setPgs(mappedPgs);
-    setUsers(deriveOwnersFromPgs(mappedPgs));
-
-    // 2) Fetch reviews for each approved PG.
-    const allReviews = [];
-    for (const pgChunk of chunkArray(mappedPgs, 5)) {
-      const reviewResps = await Promise.all(pgChunk.map(pg => api.get(`/reviews/${pg.id}`)));
-      for (const rr of reviewResps) {
-        const data = rr.data?.data || [];
-        allReviews.push(...data.map(mapReview));
-      }
-    }
-    setReviews(allReviews);
-  }, [HAS_BACKEND]);
+  }, []);
 
   const fetchOwnerPgs = useCallback(async () => {
-    if (!HAS_BACKEND || !currentUser?.id) return;
-    if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return;
+    if (!currentUser?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('pg_listings')
+        .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
+        .eq('owner_id', currentUser.id)
+        .order('created_at', { ascending: false });
 
-    const res = await api.get('/owner');
-    const payload = res.data;
-    const mappedOwnerPgs = (payload.data || []).map(mapPG);
-    setOwnerPgs(mappedOwnerPgs);
-  }, [HAS_BACKEND, currentUser?.id, currentUser?.role]);
+      if (error) throw error;
+      setOwnerPgs((data || []).map(mapPG).filter(Boolean));
+    } catch (err) {
+      console.warn('Failed to fetch owner PGs from Supabase:', err);
+    }
+  }, [currentUser?.id]);
 
   const fetchSavedPgs = useCallback(async () => {
-    if (!HAS_BACKEND || !currentUser?.id) return;
+    if (!currentUser?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('saved_pgs')
+        .select('*, pg_listings(*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status))')
+        .eq('user_id', currentUser.id);
 
-    const res = await api.get('/user/saved');
-    const payload = res.data;
-    setSavedPgs((payload.data || []).map(mapPG));
-  }, [HAS_BACKEND, currentUser?.id]);
+      if (error) throw error;
+      const list = (data || []).map((item) => mapPG(item.pg_listings)).filter(Boolean);
+      setSavedPgs(list);
+    } catch (err) {
+      console.warn('Failed to fetch saved PGs from Supabase:', err);
+    }
+  }, [currentUser?.id]);
 
   const fetchNotifications = useCallback(async () => {
-    if (!HAS_BACKEND || !currentUser?.id) return;
+    if (!currentUser?.id) return;
+    try {
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const [notifRes, unreadRes] = await Promise.all([
-      api.get('/notifications', { params: { page: 1, limit: 100 } }),
-      api.get('/notifications/unread-count'),
-    ]);
+      if (currentUser?.role === 'admin') {
+        // Admin sees:
+        // 1. Admin/system alerts (user_id IS NULL)
+        // 2. Personal notifications directly addressed to this admin
+        query = query.or(`user_id.is.null,user_id.eq.${currentUser.id}`);
+      } else {
+        // Students, Users, Owners ONLY see their own personal notifications
+        query = query.eq('user_id', currentUser.id);
+      }
 
-    const notifPayload = notifRes.data;
-    setNotifications((notifPayload.data || []).map(mapNotification));
-    setUnreadCount(unreadRes.data?.count || 0);
-  }, [HAS_BACKEND, currentUser?.id]);
-
-  const fetchChatUnreadCount = useCallback(async () => {
-    if (!HAS_BACKEND || !currentUser?.id) return;
-    const res = await api.get('/chat/conversations');
-    const conversations = res.data?.data || [];
-    const total = conversations.reduce((sum, c) => sum + Number(c.unreadCount || 0), 0);
-    setChatUnreadCount(total);
-  }, [HAS_BACKEND, currentUser?.id]);
-
-  const fetchAdminData = useCallback(async () => {
-    if (!HAS_BACKEND || currentUser?.role !== 'admin') return;
-
-    const limit = 100;
-    let page = 1;
-    let totalPages = 1;
-
-    // Admin PGs
-    const allAdminPgsRaw = [];
-    page = 1;
-    totalPages = 1;
-    while (page <= totalPages) {
-      const res = await api.get('/admin/pgs', { params: { page, limit } });
-      const payload = res.data;
-      totalPages = payload.totalPages || 1;
-      allAdminPgsRaw.push(...(payload.data || []));
-      page += 1;
+      const { data, error } = await query;
+      if (error) throw error;
+      const mapped = (data || []).map((n) => ({
+        id: String(n.id),
+        userId: n.user_id,
+        message: n.message,
+        type: n.type,
+        relatedId: n.related_id,
+        isRead: !!n.is_read,
+        createdAt: n.created_at,
+      }));
+      setNotifications(mapped);
+      setUnreadCount(mapped.filter((x) => !x.isRead).length);
+    } catch (err) {
+      console.warn('Failed to fetch notifications from Supabase:', err);
     }
-    const mappedAdminPgs = allAdminPgsRaw.map(mapPG);
-    setPgs(mappedAdminPgs);
+  }, [currentUser?.id, currentUser?.role]);
 
-    // Admin Users
-    page = 1;
-    totalPages = 1;
-    const allUsersRaw = [];
-    while (page <= totalPages) {
-      const res = await api.get('/admin/users', { params: { page, limit } });
-      const payload = res.data;
-      totalPages = payload.totalPages || 1;
-      allUsersRaw.push(...(payload.data || []));
-      page += 1;
-    }
-    setUsers(allUsersRaw.map(mapUser));
-
-  }, [HAS_BACKEND, currentUser?.role]);
-
-  useEffect(() => {
-    if (!HAS_BACKEND) return;
-
-    let cancelled = false;
-    (async () => {
+  const createNotification = useCallback(
+    async ({ userId, message, type = 'info', relatedId = null }) => {
       try {
-        if (currentUser?.role === 'admin') {
-          await fetchAdminData();
-        } else {
-          await fetchApprovedPgsAndReviews();
-          if (cancelled) return;
-          if (currentUser?.role === 'owner' || currentUser?.role === 'admin') await fetchOwnerPgs();
+        const payload = {
+          user_id: userId || null,
+          message,
+          type,
+          related_id: relatedId ? String(relatedId) : null,
+          is_read: false,
+        };
+
+        const { error } = await supabase
+          .from('notifications')
+          .insert(payload);
+
+        if (error) {
+          console.warn('Failed to insert notification in Supabase:', error);
+          return null;
         }
 
-        if (cancelled) return;
-        if (currentUser?.id) await fetchSavedPgs();
-        if (cancelled) return;
-        if (currentUser?.id) await fetchNotifications();
-        if (cancelled) return;
-        if (currentUser?.id) await fetchChatUnreadCount();
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('Data sync failed:', e?.message || e);
+        // Only refresh local notifications if this notification is meant for the current viewer
+        const isTargetedToCurrent = payload.user_id && String(payload.user_id) === String(currentUser?.id);
+        const isAdminAlert = !payload.user_id;
+        const shouldRefresh =
+          currentUser?.role === 'admin'
+            ? Boolean(isAdminAlert || isTargetedToCurrent)
+            : Boolean(isTargetedToCurrent);
+
+        if (shouldRefresh) {
+          await fetchNotifications();
+        }
+      } catch (err) {
+        console.warn('createNotification exception:', err);
+        return null;
+      }
+    },
+    [currentUser?.id, currentUser?.role, fetchNotifications]
+  );
+
+  const fetchAdminData = useCallback(async () => {
+    if (currentUser?.role !== 'admin') return;
+    try {
+      const [pgsRes, usersRes] = await Promise.all([
+        supabase.from('pg_listings').select('*, profiles(*)').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (pgsRes.data) setPgs(pgsRes.data.map(mapPG));
+      if (usersRes.data) setUsers(usersRes.data.map(mapUser));
+    } catch (err) {
+      console.warn('Failed to fetch admin data from Supabase:', err);
+    }
+  }, [currentUser?.role]);
+
+  // Initial load
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (currentUser?.role === 'admin') {
+        await fetchAdminData();
+      } else {
+        await fetchApprovedPgsAndReviews();
+        if (currentUser?.role === 'owner') await fetchOwnerPgs();
+      }
+
+      if (currentUser?.id) {
+        await fetchSavedPgs();
+        await fetchNotifications();
       }
     })();
 
     return () => {
-      cancelled = true;
+      mounted = false;
     };
-  }, [HAS_BACKEND, currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications, fetchChatUnreadCount]);
+  }, [currentUser?.id, currentUser?.role, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications, fetchAdminData]);
 
+  // Realtime subscription for instant notifications without page refresh
   useEffect(() => {
-    if (!HAS_BACKEND || !currentUser?.id) return;
-    const timer = setInterval(() => {
-      fetchNotifications().catch(() => {});
-      fetchChatUnreadCount().catch(() => {});
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [HAS_BACKEND, currentUser?.id, fetchNotifications, fetchChatUnreadCount]);
+    if (!currentUser?.id) return;
+
+    const channel = supabase
+      .channel(`realtime-notifications-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload) => {
+          if (!payload.new && !payload.old) return;
+          const targetUserId = payload.new ? payload.new.user_id : payload.old?.user_id;
+          const isTargetedToCurrent = targetUserId && String(targetUserId) === String(currentUser.id);
+          const isAdminAlert = !targetUserId;
+
+          // Admin only receives:
+          // 1. Admin/system alerts (user_id is null)
+          // 2. Personal notifications directly addressed to this admin
+          // Students, Users, Owners only receive:
+          // Notifications specifically targeted to their user ID
+          const shouldReceive =
+            currentUser.role === 'admin'
+              ? Boolean(isAdminAlert || isTargetedToCurrent)
+              : Boolean(isTargetedToCurrent);
+
+          if (!shouldReceive) return;
+
+          if (payload.eventType === 'INSERT') {
+            const newNotif = {
+              id: String(payload.new.id),
+              userId: payload.new.user_id,
+              message: payload.new.message,
+              type: payload.new.type,
+              relatedId: payload.new.related_id,
+              isRead: !!payload.new.is_read,
+              createdAt: payload.new.created_at,
+            };
+            setNotifications((prev) => [
+              newNotif,
+              ...prev.filter((n) => n.id !== newNotif.id),
+            ]);
+            setUnreadCount((c) => c + 1);
+            toast(payload.new.message, {
+              icon: '🔔',
+              duration: 5000,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === String(payload.new.id)
+                  ? { ...n, isRead: !!payload.new.is_read }
+                  : n
+              )
+            );
+            setUnreadCount((prev) =>
+              payload.new.is_read ? Math.max(0, prev - 1) : prev + 1
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setNotifications((prev) =>
+              prev.filter((n) => n.id !== String(payload.old.id))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, currentUser?.role]);
 
   // ── PG Queries ──
   const getApprovedPGs = useCallback(
     () =>
       pgs.filter(
         (pg) =>
-          ['approved', 'pending_update', 'pending_delete'].includes(pg.status) &&
-          !pg.isDeleted
+          pg.isVerified ||
+          pg.status === 'approved' ||
+          pg.status === 'pending_update' ||
+          pg.status === 'pending_delete'
       ),
     [pgs]
   );
 
-  const getPGById = useCallback((id) =>
-    pgs.find(pg => pg.id === id), [pgs]);
+  const getPGById = useCallback(
+    (id) => pgs.find((pg) => String(pg.id) === String(id)),
+    [pgs]
+  );
 
-  const getOwnerPGs = useCallback((ownerId) =>
-    ownerPgs.filter(pg => pg.ownerId === ownerId && !pg.isDeleted), [ownerPgs]);
+  const getOwnerPGs = useCallback(
+    (ownerId) =>
+      currentUser?.role === 'admin'
+        ? pgs
+        : ownerPgs.length > 0
+        ? ownerPgs
+        : pgs.filter((p) => String(p.ownerId) === String(ownerId || currentUser?.id)),
+    [currentUser?.role, currentUser?.id, ownerPgs, pgs]
+  );
 
-  const getOwnerPGById = useCallback((ownerId, pgId) =>
-    ownerPgs.find(pg => pg.ownerId === ownerId && pg.id === pgId && !pg.isDeleted), [ownerPgs]);
+  const getOwnerPGById = useCallback(
+    (id) => (currentUser?.role === 'admin' ? pgs : ownerPgs).find((p) => String(p.id) === String(id)),
+    [currentUser?.role, pgs, ownerPgs]
+  );
 
   // ── PG Mutations ──
-  const addPG = useCallback(async (pgData, ownerId) => {
-    if (!HAS_BACKEND) return;
+  const addPG = useCallback(
+    async (pgData, ownerId) => {
+      const currentUid = currentUser?.id || ownerId;
+      const { data, error } = await supabase
+        .from('pg_listings')
+        .insert({
+          owner_id: currentUid,
+          title: pgData.title,
+          description: pgData.description,
+          locality: pgData.location?.city || pgData.city || 'Gangtok',
+          address: pgData.location?.address || pgData.address || '',
+          rent: Number(pgData.price),
+          deposit: Number(pgData.deposit || 0),
+          room_type: pgData.roomType,
+          gender_preference: pgData.genderPreference,
+          amenities: pgData.amenities || [],
+          rules: pgData.rules || [],
+          images: pgData.images || [],
+          contact_number: pgData.contactNumber,
+          is_verified: false,
+          status: 'pending',
+        })
+        .select()
+        .single();
 
-    const form = new FormData();
-    form.append('title', pgData.title || '');
-    form.append('description', pgData.description || '');
-    form.append('price', String(pgData.price ?? ''));
-    form.append('city', pgData.location?.city || '');
-    form.append('area', pgData.location?.area || '');
-    form.append('address', pgData.location?.address || '');
-    form.append('roomType', pgData.roomType || '');
-    form.append('genderPreference', pgData.genderPreference || '');
-    form.append('amenities', (pgData.amenities || []).join(','));
-    form.append('rules', (pgData.rules || []).join('\n'));
-    form.append('contactNumber', pgData.contactNumber || '');
-
-    // Backend accepts uploaded image files; we try to fetch URLs into Blobs,
-    // but if CORS fails we still allow the PG to be created (images empty).
-    const images = Array.isArray(pgData.images) ? pgData.images : [];
-    for (let i = 0; i < images.length; i += 1) {
-      const url = images[i];
-      try {
-        const resp = await fetch(url);
-        const blob = await resp.blob();
-        if (!blob.type.startsWith('image/')) continue;
-        const file = new File([blob], `pg_${Date.now()}_${i}.${blob.type.split('/')[1] || 'jpg'}`, { type: blob.type });
-        form.append('images', file);
-      } catch (_) {
-        // Ignore image upload failures (still create PG).
-      }
-    }
-
-    await api.post('/owner', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    // Refresh only what matters (owner dashboard).
-    if (currentUser?.role === 'admin') await fetchAdminData();
-    else await fetchOwnerPgs();
-  }, [HAS_BACKEND, currentUser?.role, fetchAdminData, fetchOwnerPgs]);
-
-  const updatePG = useCallback(async (id, pgData) => {
-    if (!HAS_BACKEND) return;
-
-    // Fetch current PG images so we can send removeImages for deleted ones.
-    const existingRes = await api.get(`/pgs/${id}`);
-    const existingPg = existingRes.data?.data || {};
-    const existingImages = Array.isArray(existingPg.images) ? existingPg.images : [];
-
-    const newImages = Array.isArray(pgData.images) ? pgData.images : [];
-    const removedImages = existingImages.filter(img => !newImages.includes(img));
-    const addedImages = newImages.filter(img => !existingImages.includes(img));
-
-    const form = new FormData();
-    form.append('title', pgData.title || '');
-    form.append('description', pgData.description || '');
-    form.append('price', String(pgData.price ?? ''));
-    form.append('city', pgData.location?.city || '');
-    form.append('area', pgData.location?.area || '');
-    form.append('address', pgData.location?.address || '');
-    form.append('roomType', pgData.roomType || '');
-    form.append('genderPreference', pgData.genderPreference || '');
-    form.append('amenities', (pgData.amenities || []).join(','));
-    form.append('rules', (pgData.rules || []).join('\n'));
-    form.append('contactNumber', pgData.contactNumber || '');
-
-    for (const rem of removedImages) form.append('removeImages', rem);
-
-    for (let i = 0; i < addedImages.length; i += 1) {
-      const url = addedImages[i];
-      try {
-        const resp = await fetch(url);
-        const blob = await resp.blob();
-        if (!blob.type.startsWith('image/')) continue;
-        const file = new File([blob], `pg_${Date.now()}_${i}.${blob.type.split('/')[1] || 'jpg'}`, { type: blob.type });
-        form.append('images', file);
-      } catch (_) {
-        // Ignore image upload failures.
-      }
-    }
-
-    await api.put(`/owner/${id}`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    if (currentUser?.role === 'admin') await fetchAdminData();
-    else await fetchOwnerPgs();
-  }, [HAS_BACKEND, currentUser?.role, fetchAdminData, fetchOwnerPgs]);
-
-  const deletePG = useCallback(async (id, reason = '') => {
-    if (!HAS_BACKEND) return;
-
-    if (currentUser?.role === 'admin') {
-      await api.delete(`/admin/pgs/${id}`);
-      await fetchAdminData();
-    } else {
-      await api.delete(`/owner/${id}`, { data: { reason } });
+      if (error) throw error;
       await fetchOwnerPgs();
-    }
-  }, [HAS_BACKEND, currentUser?.role, fetchAdminData, fetchOwnerPgs]);
+      if (currentUser?.role === 'admin') await fetchAdminData();
 
-  const approvePG = useCallback(async (id) => {
-    if (!HAS_BACKEND) return;
-    await api.put(`/admin/pgs/${id}/approve`);
-    await fetchAdminData();
-  }, [HAS_BACKEND, fetchAdminData]);
+      // Notify the owner
+      if (currentUid) {
+        await createNotification({
+          userId: currentUid,
+          message: `Your PG listing "${pgData.title}" has been submitted for admin approval.`,
+          type: 'ADD_PG',
+          relatedId: data?.id,
+        });
+      }
 
-  const rejectPG = useCallback(async (id, reason) => {
-    if (!HAS_BACKEND) return;
-    await api.put(`/admin/pgs/${id}/reject`, { reason });
-    await fetchAdminData();
-  }, [HAS_BACKEND, fetchAdminData]);
+      // Notify Admin
+      await createNotification({
+        userId: null,
+        message: `New PG "${pgData.title}" submitted by ${currentUser?.name || 'an owner'} for approval.`,
+        type: 'ADD_PG',
+        relatedId: data?.id,
+      });
+
+      return data;
+    },
+    [currentUser?.id, currentUser?.name, currentUser?.role, fetchOwnerPgs, fetchAdminData, createNotification]
+  );
+
+  const updatePG = useCallback(
+    async (id, pgData) => {
+      const { error } = await supabase
+        .from('pg_listings')
+        .update({
+          title: pgData.title,
+          description: pgData.description,
+          locality: pgData.location?.city || pgData.city,
+          address: pgData.location?.address || pgData.address,
+          rent: Number(pgData.price),
+          deposit: Number(pgData.deposit || 0),
+          room_type: pgData.roomType,
+          gender_preference: pgData.genderPreference,
+          amenities: pgData.amenities,
+          rules: pgData.rules,
+          images: pgData.images,
+          contact_number: pgData.contactNumber,
+          status: 'pending_update',
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchOwnerPgs();
+      if (currentUser?.role === 'admin') await fetchAdminData();
+
+      if (currentUser?.id) {
+        await createNotification({
+          userId: currentUser.id,
+          message: `Your updates to "${pgData.title}" have been saved and sent for admin review.`,
+          type: 'UPDATE_PG',
+          relatedId: id,
+        });
+      }
+
+      await createNotification({
+        userId: null,
+        message: `PG "${pgData.title}" was updated by ${currentUser?.name || 'Owner'} and is pending review.`,
+        type: 'UPDATE_PG',
+        relatedId: id,
+      });
+    },
+    [currentUser?.id, currentUser?.name, currentUser?.role, fetchOwnerPgs, fetchAdminData, createNotification]
+  );
+
+  const deletePG = useCallback(
+    async (id, reason = '') => {
+      if (currentUser?.role === 'admin') {
+        const { error } = await supabase.from('pg_listings').delete().eq('id', id);
+        if (error) throw error;
+        await fetchAdminData();
+      } else {
+        const { error } = await supabase
+          .from('pg_listings')
+          .update({ status: 'pending_delete', delete_request_reason: reason })
+          .eq('id', id);
+        if (error) throw error;
+        await fetchOwnerPgs();
+
+        const target = pgs.find((p) => String(p.id) === String(id));
+        if (currentUser?.id) {
+          await createNotification({
+            userId: currentUser.id,
+            message: `Your deletion request for "${target?.title || 'PG'}" was submitted for admin review.`,
+            type: 'DELETE_PG',
+            relatedId: id,
+          });
+        }
+        await createNotification({
+          userId: null,
+          message: `Deletion request submitted for PG "${target?.title || 'PG'}" by ${currentUser?.name || 'Owner'}. Reason: ${reason}`,
+          type: 'DELETE_PG',
+          relatedId: id,
+        });
+      }
+    },
+    [currentUser?.id, currentUser?.name, currentUser?.role, pgs, fetchAdminData, fetchOwnerPgs, createNotification]
+  );
+
+  const approvePG = useCallback(
+    async (id) => {
+      const { error } = await supabase
+        .from('pg_listings')
+        .update({ is_verified: true, status: 'approved' })
+        .eq('id', id);
+      if (error) throw error;
+      const target = pgs.find((p) => String(p.id) === String(id));
+      if (target?.ownerId) {
+        await createNotification({
+          userId: target.ownerId,
+          message: `Great news! Your PG listing "${target.title}" has been approved and is now live.`,
+          type: 'PG_STATUS_UPDATE',
+          relatedId: id,
+        });
+      }
+      await fetchAdminData();
+    },
+    [pgs, createNotification, fetchAdminData]
+  );
+
+  const rejectPG = useCallback(
+    async (id, reason) => {
+      const { error } = await supabase
+        .from('pg_listings')
+        .update({ status: 'rejected', rejection_reason: reason })
+        .eq('id', id);
+      if (error) throw error;
+      const target = pgs.find((p) => String(p.id) === String(id));
+      if (target?.ownerId) {
+        await createNotification({
+          userId: target.ownerId,
+          message: `Your PG listing "${target.title}" was rejected. Reason: ${reason || 'Guidelines not met'}`,
+          type: 'PG_STATUS_UPDATE',
+          relatedId: id,
+        });
+      }
+      await fetchAdminData();
+    },
+    [pgs, createNotification, fetchAdminData]
+  );
 
   // ── Save PGs ──
-  const savePGToggle = useCallback(async (_userId, pgId) => {
-    if (!HAS_BACKEND) return;
-    await api.post(`/user/save/${pgId}`);
-    await fetchSavedPgs();
-  }, [HAS_BACKEND, fetchSavedPgs]);
+  const savePGToggle = useCallback(
+    async (userId, pgId) => {
+      const uid = userId || currentUser?.id;
+      if (!uid) return;
 
-  const getSavedPGs = useCallback((_userId) => savedPgs, [savedPgs]);
+      const isSaved = savedPgs.some((s) => String(s.id) === String(pgId));
+      if (isSaved) {
+        await supabase.from('saved_pgs').delete().match({ user_id: uid, pg_id: pgId });
+      } else {
+        await supabase.from('saved_pgs').insert({ user_id: uid, pg_id: pgId });
+      }
+      await fetchSavedPgs();
+    },
+    [currentUser?.id, savedPgs, fetchSavedPgs]
+  );
+
+  const getSavedPGs = useCallback(() => savedPgs, [savedPgs]);
 
   // ── Reviews ──
-  const addReview = useCallback(async (pgId, _userId, _userName, rating, comment) => {
-    if (!HAS_BACKEND) return;
+  const addReview = useCallback(
+    async (pgId, userId, userName, rating, comment) => {
+      const uid = userId || currentUser?.id;
+      const { error } = await supabase.from('reviews').insert({
+        pg_id: pgId,
+        user_id: uid,
+        rating: Number(rating),
+        comment,
+      });
 
-    await api.post(`/reviews/${pgId}`, { rating, comment });
+      if (error) throw error;
 
-    // Refresh reviews and PG rating for this PG.
-    const [reviewsRes, pgRes] = await Promise.all([
-      api.get(`/reviews/${pgId}`),
-      api.get(`/pgs/${pgId}`),
-    ]);
+      // Re-fetch reviews
+      const { data: updatedReviews } = await supabase
+        .from('reviews')
+        .select('*, profiles(full_name)')
+        .eq('pg_id', pgId);
 
-    const updatedReviews = (reviewsRes.data?.data || []).map(mapReview);
-    setReviews(prev => [
-      ...prev.filter(r => r.pgId !== pgId),
-      ...updatedReviews,
-    ]);
+      setReviews((prev) => [
+        ...prev.filter((r) => String(r.pgId) !== String(pgId)),
+        ...(updatedReviews || []).map(mapReview),
+      ]);
 
-    const updatedPg = mapPG(pgRes.data?.data || {});
-    setPgs(prev => prev.map(p => (p.id === pgId ? updatedPg : p)));
-  }, [HAS_BACKEND, setPgs, setReviews]);
+      const targetPg = pgs.find((p) => String(p.id) === String(pgId));
+      if (targetPg?.ownerId && String(targetPg.ownerId) !== String(uid)) {
+        await createNotification({
+          userId: targetPg.ownerId,
+          message: `${userName || 'A tenant'} left a ${rating}-star review on "${targetPg.title}".`,
+          type: 'REVIEW',
+          relatedId: pgId,
+        });
+      }
+    },
+    [currentUser?.id, pgs, createNotification]
+  );
 
-  const getPGReviews = useCallback((pgId) =>
-    reviews.filter(r => r.pgId === pgId), [reviews]);
+  const getPGReviews = useCallback(
+    (pgId) => reviews.filter((r) => String(r.pgId) === String(pgId)),
+    [reviews]
+  );
 
   // ── Reports ──
-  const reportPG = useCallback(async (pgId, _userId, reason) => {
-    if (!HAS_BACKEND) return;
-    await api.post(`/reports/${pgId}`, { reason });
-
-    if (currentUser?.role === 'admin') await fetchAdminData();
-  }, [HAS_BACKEND, currentUser?.role, fetchAdminData]);
-
-  // ── Admin/Owner management ──
-  const approveOwner = useCallback(async (userId) => {
-    if (!HAS_BACKEND) return;
-    await api.put(`/admin/users/${userId}/approve-owner`);
-    await fetchAdminData();
-  }, [HAS_BACKEND, fetchAdminData]);
-
-  const blockUser = useCallback(async (userId) => {
-    if (!HAS_BACKEND) return;
-    await api.put(`/admin/users/${userId}/block`);
-    await fetchAdminData();
-  }, [HAS_BACKEND, fetchAdminData]);
-
-  const requestOwner = useCallback(async ({ fullName, phoneNumber, propertyDocument, identityDocument }) => {
-    if (!HAS_BACKEND) return;
-
-    const form = new FormData();
-    form.append('fullName', fullName || '');
-    form.append('phoneNumber', phoneNumber || '');
-    form.append('propertyDocument', propertyDocument);
-    form.append('identityDocument', identityDocument);
-
-    await api.post('/user/request-owner', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+  const reportPG = useCallback(async (pgId, userId, reason) => {
+    await createNotification({
+      userId: null,
+      message: `Report filed for PG #${pgId}: ${reason}`,
+      type: 'REPORT_PG',
+      relatedId: pgId,
     });
+  }, [createNotification]);
 
-    // This action creates an OWNER_REQUEST notification in the backend.
-    if (currentUser?.role === 'admin') await fetchAdminData();
-  }, [HAS_BACKEND, currentUser?.role, fetchAdminData]);
+  // ── Admin Users Management ──
+  const approveOwner = useCallback(
+    async (userId) => {
+      const target = users.find((u) => String(u.id) === String(userId));
+      const hasDocs = Boolean(
+        target?.ownerRequestDetails?.propertyDocumentUrl ||
+        target?.ownerRequestDetails?.identityDocumentUrl
+      );
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: 'owner',
+          kyc_status: hasDocs ? 'verified' : 'unverified',
+        })
+        .eq('id', userId);
+      if (error) throw error;
+
+      await createNotification({
+        userId,
+        message: hasDocs
+          ? 'Congratulations! Your owner verification request and documents have been approved. Your properties will show as Verified.'
+          : 'Congratulations! Your owner request has been approved. You can now list properties (they will show as Not Verified until verification documents are uploaded).',
+        type: 'OWNER_APPROVED',
+      });
+
+      await fetchAdminData();
+    },
+    [users, createNotification, fetchAdminData]
+  );
+
+  const rejectOwner = useCallback(
+    async (userId, reason = '') => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: 'student',
+          kyc_status: 'rejected',
+        })
+        .eq('id', userId);
+      if (error) throw error;
+
+      const rejectMessage = reason?.trim()
+        ? `Your owner verification request was declined. Reason: ${reason.trim()}`
+        : 'Your owner verification request was declined by admin. Please review your details and re-apply.';
+
+      await createNotification({
+        userId,
+        message: rejectMessage,
+        type: 'OWNER_REJECTED',
+      });
+
+      await fetchAdminData();
+    },
+    [createNotification, fetchAdminData]
+  );
+
+  const blockUser = useCallback(
+    async (userId) => {
+      const target = users.find((u) => String(u.id) === String(userId));
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_blocked: !target?.isBlocked })
+        .eq('id', userId);
+      if (error) throw error;
+      await fetchAdminData();
+    },
+    [users, fetchAdminData]
+  );
+
+  const changeUserRole = useCallback(
+    async (userId, newRole) => {
+      const updates = {
+        role: newRole,
+        updated_at: new Date().toISOString(),
+      };
+      if (newRole === 'owner') {
+        updates.kyc_status = 'verified';
+      }
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+      if (error) throw error;
+
+      // Optimistically update local users state
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (String(u.id) === String(userId)) {
+            return {
+              ...u,
+              role: newRole,
+              ownerRequestStatus: newRole === 'owner' ? 'approved' : u.ownerRequestStatus,
+            };
+          }
+          return u;
+        })
+      );
+
+      const roleLabel = (newRole === 'student' || newRole === 'user') ? 'Student / User' : newRole.toUpperCase();
+      await createNotification({
+        userId,
+        message: `Your account role has been updated to "${roleLabel}".`,
+        type: 'USER_ROLE',
+      });
+
+      await fetchAdminData();
+    },
+    [createNotification, fetchAdminData]
+  );
+
+  const requestOwner = useCallback(
+    async ({ fullName, phoneNumber, propertyDocument, identityDocument }) => {
+      if (!currentUser?.id) throw new Error('You must be logged in to request owner access');
+
+      let propUrl = '';
+      let idUrl = '';
+
+      if (propertyDocument) {
+        propUrl = await uploadToCloudinary(propertyDocument, 'sikkim_pg_kyc', 0.5);
+      }
+      if (identityDocument) {
+        idUrl = await uploadToCloudinary(identityDocument, 'sikkim_pg_kyc', 0.5);
+      }
+
+      const updates = {
+        full_name: fullName,
+        phone: phoneNumber,
+        kyc_status: 'pending',
+        kyc_doc_url: propUrl || null,
+        kyc_id_doc_url: idUrl || null,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', currentUser.id);
+
+      if (error) throw error;
+
+      const hasDocs = Boolean(propUrl || idUrl);
+
+      await createNotification({
+        userId: currentUser.id,
+        message: hasDocs
+          ? 'Your request to become a PG owner (with verification documents) has been submitted for admin review.'
+          : 'Your request to become a PG owner has been submitted. (Your listings will show as Not Verified until verification documents are uploaded)',
+        type: 'OWNER_REQUEST',
+      });
+
+      await createNotification({
+        userId: null,
+        message: `${fullName || currentUser.name} submitted an owner request ${hasDocs ? 'with verification documents' : '(without documents - unverified)'}.`,
+        type: 'OWNER_REQUEST',
+        relatedId: currentUser.id,
+      });
+    },
+    [currentUser, createNotification]
+  );
 
   const markNotificationsRead = useCallback(async () => {
-    if (!HAS_BACKEND) return;
-    await api.put('/notifications/mark-read');
+    if (!currentUser?.id) return;
+    if (currentUser?.role === 'admin') {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .or(`user_id.is.null,user_id.eq.${currentUser.id}`);
+    } else {
+      await supabase.from('notifications').update({ is_read: true }).eq('user_id', currentUser.id);
+    }
     await fetchNotifications();
-  }, [HAS_BACKEND, fetchNotifications]);
+  }, [currentUser?.id, currentUser?.role, fetchNotifications]);
 
-  const markOneRead = useCallback(async (id) => {
-    if (!HAS_BACKEND) return;
-    await api.put(`/notifications/${id}/read`);
-    await fetchNotifications();
-  }, [HAS_BACKEND, fetchNotifications]);
+  const markOneRead = useCallback(
+    async (id) => {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+      await fetchNotifications();
+    },
+    [fetchNotifications]
+  );
 
   const getUnreadCount = useCallback(() => unreadCount, [unreadCount]);
-  const getChatUnreadCount = useCallback(() => chatUnreadCount, [chatUnreadCount]);
 
   return (
-    <DataContext.Provider value={{
-      pgs, notifications, reviews,
-      users,
-      getApprovedPGs, getPGById, getOwnerPGs,
-      getOwnerPGById,
-      addPG, updatePG, deletePG, approvePG, rejectPG,
-      savePGToggle, getSavedPGs,
-      addReview, getPGReviews,
-      reportPG,
-      approveOwner, blockUser, requestOwner,
-      markNotificationsRead, markOneRead, getUnreadCount, getChatUnreadCount,
-    }}>
+    <DataContext.Provider
+      value={{
+        pgs,
+        notifications,
+        reviews,
+        users,
+        getApprovedPGs,
+        getPGById,
+        getOwnerPGs,
+        getOwnerPGById,
+        addPG,
+        updatePG,
+        deletePG,
+        approvePG,
+        rejectPG,
+        savePGToggle,
+        getSavedPGs,
+        addReview,
+        getPGReviews,
+        reportPG,
+        approveOwner,
+        rejectOwner,
+        blockUser,
+        changeUserRole,
+        requestOwner,
+        createNotification,
+        markNotificationsRead,
+        markOneRead,
+        getUnreadCount,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );

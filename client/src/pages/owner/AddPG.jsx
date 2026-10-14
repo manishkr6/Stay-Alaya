@@ -5,6 +5,7 @@ import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus } from 'lucide
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
+import { uploadMultipleToCloudinary } from '../../utils/cloudinaryUpload';
 
 const AMENITIES = ['WiFi', 'Food', 'AC', 'Parking', 'Laundry', 'CCTV', 'Water', 'Gym'];
 const CITIES = ['Gangtok', 'Singtam', 'Namchi', 'Jorethang', 'Gyalshing', 'Mangan', 'Ravangla', 'Pakyong', 'Rangpo'];
@@ -51,22 +52,16 @@ export default function AddPG({ editMode = false, existingPG = null }) {
     const remaining = Math.max(0, 6 - images.length);
     const selected = files.slice(0, remaining);
 
-    const toDataUrl = (file) =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Failed to read image'));
-        reader.readAsDataURL(file);
-      });
-
+    const toastId = toast.loading('Compressing and uploading images...');
     try {
-      const dataUrls = await Promise.all(selected.map(toDataUrl));
-      setImages(prev => [...prev, ...dataUrls]);
+      const uploadedUrls = await uploadMultipleToCloudinary(selected, 'sikkim_pg_rooms', 0.3);
+      setImages(prev => [...prev, ...uploadedUrls]);
+      toast.success('Images uploaded successfully', { id: toastId });
       if (files.length > remaining) {
         toast.error('You can upload maximum 6 images');
       }
-    } catch {
-      toast.error('Could not read selected images');
+    } catch (err) {
+      toast.error(err.message || 'Could not upload selected images', { id: toastId });
     } finally {
       event.target.value = '';
     }

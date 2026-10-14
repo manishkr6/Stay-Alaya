@@ -12,14 +12,13 @@ import {
   Search,
   Building2,
   Info,
-  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useData } from "../../hooks/useData";
 
 export default function Navbar() {
   const { currentUser, logout, isAuthenticated } = useAuth();
-  const { getSavedPGs, getUnreadCount, getChatUnreadCount } = useData();
+  const { getSavedPGs, getUnreadCount } = useData();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -40,7 +39,6 @@ export default function Navbar() {
 
   const savedCount = currentUser ? getSavedPGs(currentUser.id)?.length || 0 : 0;
   const unreadCount = getUnreadCount();
-  const chatUnreadCount = getChatUnreadCount();
 
   const handleLogout = () => {
     logout();
@@ -58,8 +56,17 @@ export default function Navbar() {
   const roleLinks = {
     admin: { label: "Admin Panel", path: "/admin" },
     owner: { label: "My Dashboard", path: "/owner" },
+    student: { label: "Dashboard", path: "/dashboard" },
     user: { label: "Dashboard", path: "/dashboard" },
   };
+
+  const isAuthPage = [
+    "/login",
+    "/signup",
+    "/verify-otp",
+    "/forgot-password",
+    "/reset-password",
+  ].some((p) => location.pathname.startsWith(p));
 
   const navLinkClass = (path) => {
     const active =
@@ -104,6 +111,7 @@ export default function Navbar() {
           {/* Center Links (desktop) */}
           {(!isAuthenticated ||
             currentUser?.role === "user" ||
+            currentUser?.role === "student" ||
             currentUser?.role === "owner") && (
             <div className="hidden md:flex items-center gap-1">
               <Link to="/" className={navLinkClass("/")}>
@@ -147,7 +155,7 @@ export default function Navbar() {
 
           {/* Right Side */}
           <div className="hidden md:flex items-center gap-2">
-            {!isAuthenticated ? (
+            {!isAuthenticated || isAuthPage ? (
               <>
                 <Link
                   to="/login"
@@ -168,7 +176,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                {currentUser.role === "user" && (
+                {(currentUser.role === "user" || currentUser.role === "student") && (
                   <Link
                     to="/dashboard"
                     className="relative p-2 rounded-xl hover:bg-white/90 transition-colors text-slate-600 hover:text-primary-700"
@@ -177,19 +185,6 @@ export default function Navbar() {
                     {savedCount > 0 && (
                       <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
                         {savedCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
-                {isAuthenticated && (
-                  <Link
-                    to="/messages"
-                    className="relative p-2 rounded-xl hover:bg-white/90 transition-colors text-slate-600 hover:text-primary-700"
-                  >
-                    <MessageSquare size={18} />
-                    {chatUnreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                        {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
                       </span>
                     )}
                   </Link>
@@ -211,18 +206,18 @@ export default function Navbar() {
                     )}
                   </Link>
                 )}
-                {currentUser.role !== "user" && (
+                {(currentUser.role === "owner" || currentUser.role === "admin") && (
                   <Link
-                    to={roleLinks[currentUser.role].path}
+                    to={roleLinks[currentUser.role]?.path || "/dashboard"}
                     className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       location.pathname.startsWith(
-                        roleLinks[currentUser.role].path,
+                        roleLinks[currentUser.role]?.path || "/dashboard",
                       )
                         ? "bg-primary-600 text-white"
                         : "text-slate-700 hover:text-primary-700 hover:bg-white/90"
                     }`}
                   >
-                    <Building2 size={15} /> {roleLinks[currentUser.role].label}
+                    <Building2 size={15} /> {roleLinks[currentUser.role]?.label || "Dashboard"}
                   </Link>
                 )}
 
@@ -296,7 +291,7 @@ export default function Navbar() {
             <Link to="/list-your-pg" className={navLinkClass("/list-your-pg")}>
               <Building2 size={16} /> List Your PG
             </Link>
-            {!isAuthenticated ? (
+            {!isAuthenticated || isAuthPage ? (
               <div className="flex gap-2 pt-2">
                 <Link
                   to="/login"
@@ -313,17 +308,6 @@ export default function Navbar() {
               </div>
             ) : (
               <>
-                <Link
-                  to="/messages"
-                  className="relative flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-700 hover:bg-primary-50 hover:text-primary-600 font-medium text-sm"
-                >
-                  <MessageSquare size={16} /> Messages
-                  {chatUnreadCount > 0 && (
-                    <span className="ml-auto min-w-5 h-5 px-1 bg-primary-600 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                      {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
-                    </span>
-                  )}
-                </Link>
                 <Link
                   to={
                     currentUser.role === "admin"
