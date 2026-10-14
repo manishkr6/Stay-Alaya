@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -16,6 +16,9 @@ import {
   Dumbbell,
   Home,
   ChevronRight,
+  Sparkles,
+  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useData } from "../hooks/useData";
@@ -23,6 +26,7 @@ import { useAuth } from "../hooks/useAuth";
 import VerifiedBadge from "../components/ui/VerifiedBadge";
 import Modal from "../components/ui/Modal";
 import { StarRating } from "../components/ui/index.jsx";
+import { generatePGInsightsWithAI } from "../services/aiService";
 
 const AMENITY_ICONS = {
   WiFi: Wifi,
@@ -57,6 +61,32 @@ export default function PGDetails() {
   const [reportReason, setReportReason] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [aiInsight, setAiInsight] = useState(null);
+  const [loadingAiInsight, setLoadingAiInsight] = useState(false);
+
+  useEffect(() => {
+    if (pg?.id) {
+      setLoadingAiInsight(true);
+      generatePGInsightsWithAI(pg)
+        .then((res) => setAiInsight(res))
+        .catch((err) => console.error("AI Insight error:", err))
+        .finally(() => setLoadingAiInsight(false));
+    }
+  }, [pg?.id]);
+
+  const handleRefreshAiInsight = async () => {
+    if (!pg || loadingAiInsight) return;
+    setLoadingAiInsight(true);
+    try {
+      const res = await generatePGInsightsWithAI(pg);
+      setAiInsight(res);
+      toast.success("AI insights refreshed!");
+    } catch {
+      toast.error("Could not refresh AI insights");
+    } finally {
+      setLoadingAiInsight(false);
+    }
+  };
 
   if (!pg)
     return (
@@ -264,6 +294,74 @@ export default function PGDetails() {
                 <p className="text-slate-600 leading-relaxed text-sm">
                   {pg.description}
                 </p>
+              </div>
+
+              {/* ✨ Alaya AI Insights & Smart Summary */}
+              <div className="border-t border-slate-100 pt-6">
+                <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-white p-5 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-primary-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                        <Sparkles size={14} className="text-amber-300" />
+                      </div>
+                      <h3 className="font-bold text-slate-900 text-sm">Alaya AI Insights</h3>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200">
+                        Smart Summary
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleRefreshAiInsight}
+                      disabled={loadingAiInsight}
+                      className="text-xs text-primary-600 hover:text-primary-800 font-medium inline-flex items-center gap-1 transition-colors"
+                    >
+                      <RefreshCw size={12} className={loadingAiInsight ? "animate-spin" : ""} />
+                      {loadingAiInsight ? "Refreshing..." : "Refresh Insight"}
+                    </button>
+                  </div>
+
+                  {aiInsight ? (
+                    <div className="space-y-3 text-xs">
+                      <div className="bg-white/90 border border-indigo-100 rounded-xl p-3 shadow-2xs">
+                        <span className="font-semibold text-indigo-950 block mb-1 text-[11px] uppercase tracking-wide">
+                          🎯 Best Fit:
+                        </span>
+                        <p className="text-slate-700 leading-relaxed">{aiInsight.bestFor}</p>
+                      </div>
+
+                      {aiInsight.highlights?.length > 0 && (
+                        <div>
+                          <span className="font-semibold text-indigo-950 block mb-1.5 text-[11px] uppercase tracking-wide">
+                            ✨ Key Highlights:
+                          </span>
+                          <ul className="space-y-1.5">
+                            {aiInsight.highlights.map((h, i) => (
+                              <li key={i} className="flex items-start gap-2 text-slate-600 leading-relaxed">
+                                <CheckCircle2 size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                                <span>{h}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiInsight.sikkimTip && (
+                        <div className="bg-amber-50/90 border border-amber-200/70 rounded-xl p-3 text-amber-900 flex items-start gap-2.5">
+                          <span className="text-base shrink-0">💡</span>
+                          <p className="leading-relaxed text-[11px]">
+                            <strong className="font-semibold">Local Sikkim Tip:</strong> {aiInsight.sikkimTip}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                      <RefreshCw size={13} className="animate-spin text-primary-600" />
+                      Analyzing PG amenities & location with Gemini AI...
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Amenities */}

@@ -20,6 +20,7 @@ import SavedPGs from './pages/SavedPGs.jsx';
 import TermsOfService from './pages/LegalTerms.jsx';
 import PrivacyPolicy from './pages/LegalPrivacy.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import AlayaAIAssistant from './components/ai/AlayaAIAssistant.jsx';
 
 // Owner pages
 import OwnerDashboard from './pages/owner/OwnerDashboard.jsx';
@@ -64,6 +65,7 @@ function AppLayout({ children }) {
       <Navbar />
       <main className="flex-1">{children}</main>
       {!isAuth && <Footer />}
+      <AlayaAIAssistant />
     </div>
   );
 }

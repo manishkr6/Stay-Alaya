@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus } from 'lucide-react';
+import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { uploadMultipleToCloudinary } from '../../utils/cloudinaryUpload';
+import { generatePGDescriptionWithAI } from '../../services/aiService';
 
 const AMENITIES = ['WiFi', 'Food', 'AC', 'Parking', 'Laundry', 'CCTV', 'Water', 'Gym'];
 const CITIES = ['Gangtok', 'Singtam', 'Namchi', 'Jorethang', 'Gyalshing', 'Mangan', 'Ravangla', 'Pakyong', 'Rangpo'];
@@ -19,8 +20,9 @@ export default function AddPG({ editMode = false, existingPG = null }) {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [rulesText, setRulesText] = useState((existingPG?.rules || []).join('\n'));
   const [isLocating, setIsLocating] = useState(false);
+  const [isGeneratingAiDesc, setIsGeneratingAiDesc] = useState(false);
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, setValue, getValues, formState: { errors, isSubmitting } } = useForm({
     defaultValues: existingPG ? {
       title: existingPG.title,
       price: existingPG.price,
@@ -128,6 +130,33 @@ export default function AddPG({ editMode = false, existingPG = null }) {
     );
   };
 
+  const handleGenerateAiDescription = async () => {
+    const values = getValues();
+    if (!values.title?.trim() && !values.city) {
+      toast('Add a title or location to help the AI tailor your description', { icon: 'ℹ️' });
+    }
+    setIsGeneratingAiDesc(true);
+    try {
+      const generated = await generatePGDescriptionWithAI({
+        title: values.title || '',
+        area: values.area || '',
+        city: values.city || 'Sikkim',
+        roomType: values.roomType || '',
+        genderPreference: values.genderPreference || '',
+        price: values.price || '',
+        amenities: selectedAmenities,
+      });
+
+      setValue('description', generated, { shouldValidate: true });
+      toast.success('Description generated with AI!');
+    } catch (err) {
+      console.error('AI description error:', err);
+      toast.error('Could not generate description');
+    } finally {
+      setIsGeneratingAiDesc(false);
+    }
+  };
+
   const onSubmit = async (data) => {
     const pgData = {
       title: data.title,
@@ -189,9 +218,20 @@ export default function AddPG({ editMode = false, existingPG = null }) {
               {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Description *</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-700">Description *</label>
+                <button
+                  type="button"
+                  onClick={handleGenerateAiDescription}
+                  disabled={isGeneratingAiDesc}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary-50 to-purple-50 text-primary-700 border border-primary-200 hover:from-primary-100 hover:to-purple-100 transition-all disabled:opacity-60 shadow-xs"
+                >
+                  <Sparkles size={12} className={isGeneratingAiDesc ? "animate-spin text-primary-600" : "text-amber-500"} />
+                  {isGeneratingAiDesc ? "Writing with AI..." : "✨ Generate with AI"}
+                </button>
+              </div>
               <textarea rows={4} {...register('description', { required: 'Description is required', minLength: { value: 50, message: 'At least 50 characters' } })}
-                className="input-field resize-none" placeholder="Describe your PG in detail — amenities, surroundings, rules, etc." />
+                className="input-field resize-none" placeholder="Describe your PG in detail — or click 'Generate with AI' to let Gemini craft one!" />
               {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
             </div>
           </FormSection>
