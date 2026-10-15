@@ -390,7 +390,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
 
 function FormSection({ title, step, children, last = false }) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 p-6 ${!last ? '' : ''}`}>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-6">
         <span className="w-7 h-7 bg-primary-600 text-white text-xs font-bold rounded-lg flex items-center justify-center">{step}</span>
         <h3 className="font-semibold text-slate-900">{title}</h3>

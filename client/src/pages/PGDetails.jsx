@@ -212,7 +212,7 @@ export default function PGDetails() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
           <div className="space-y-8">
             {/* Gallery */}
@@ -603,6 +603,44 @@ export default function PGDetails() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Sticky Mobile Bottom Contact Action Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3">
+        <div>
+          <span className="text-xs text-slate-500 block">Rent</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-bold text-slate-900 font-display">₹{formatPrice(pg.price)}</span>
+            <span className="text-[11px] text-slate-500">/mo</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            className={`p-2.5 rounded-xl border transition-colors ${
+              isSaved
+                ? "border-emerald-300 bg-emerald-50 text-emerald-600"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+            title={isSaved ? "Saved" : "Save"}
+          >
+            <Heart size={16} fill={isSaved ? "currentColor" : "none"} />
+          </button>
+          <a
+            href={`tel:${pg.contactNumber}`}
+            className="flex items-center justify-center gap-1.5 bg-primary-600 active:bg-primary-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors text-xs sm:text-sm shadow-sm"
+          >
+            <Phone size={15} /> Call
+          </a>
+          <a
+            href={`https://wa.me/${pg.contactNumber.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-1.5 bg-emerald-600 active:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors text-xs sm:text-sm shadow-sm"
+          >
+            <MessageCircle size={15} /> WhatsApp
+          </a>
         </div>
       </div>
 

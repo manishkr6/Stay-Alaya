@@ -125,53 +125,53 @@ export default function Home() {
           <div className="absolute inset-0 bg-black/45"></div>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 mt-10 w-full flex flex-col items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 mt-6 sm:mt-10 w-full flex flex-col items-center">
           {/* Trust Badge */}
-          <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-sm text-slate-800 text-xs font-semibold tracking-wider uppercase mb-8">
+          <div className="inline-flex items-center gap-2 py-1 px-3 sm:py-1.5 sm:px-4 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-sm text-slate-100 text-[11px] sm:text-xs font-semibold tracking-wider uppercase mb-6 sm:mb-8">
             <CheckCircle2 size={14} className="text-emerald-400" />
             <span>Sikkim's #1 Trusted PG Platform</span>
           </div>
 
           {/* Main Headline */}
-          <h1 className="text-center font-serif text-5xl md:text-7xl font-bold text-slate-900 leading-[1.1] mb-6 tracking-tight drop-shadow-sm">
+          <h1 className="text-center font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.15] mb-5 sm:mb-6 tracking-tight drop-shadow-md">
             Find Your Perfect PG in <br />
-            <span className="relative inline-block mt-2">
-              <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">
+            <span className="relative inline-block mt-1 sm:mt-2">
+              <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-violet-300 to-indigo-200">
                 Sikkim
               </span>
               {/* Highlight stroke behind text */}
-              <span className="absolute bottom-2 left-0 w-full h-4 bg-violet-200/50 -z-10 rounded-full blur-sm"></span>
+              <span className="absolute bottom-1 sm:bottom-2 left-0 w-full h-3 sm:h-4 bg-violet-500/30 -z-10 rounded-full blur-sm"></span>
             </span>
           </h1>
 
-          <p className="text-center text-slate-100 md:text-lg mb-12 max-w-2xl font-semibold tracking-wide drop-shadow-[0_2px_12px_rgba(15,23,42,0.45)] bg-slate-900/20 backdrop-blur-[2px] border border-white/20 rounded-2xl px-5 py-3">
+          <p className="text-center text-slate-100 text-sm sm:text-base md:text-lg mb-8 sm:mb-12 max-w-2xl font-medium tracking-wide drop-shadow-[0_2px_12px_rgba(15,23,42,0.6)] bg-slate-900/40 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3">
             Discover verified paying guest accommodations, hostels, and rooms
             for rent without any broker fees.
           </p>
 
           {/* Glassmorphic Search & Stats Container */}
-          <div className="w-full max-w-4xl bg-white/60 backdrop-blur-xl border border-white/50 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-violet-900/10">
-            <div className="mb-8">
+          <div className="w-full max-w-4xl bg-white/80 sm:bg-white/70 backdrop-blur-xl border border-white/60 p-3.5 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-2xl shadow-violet-900/15">
+            <div className="mb-5 sm:mb-8">
               <SearchBar />
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200/50">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-200/60">
               {stats.map(({ value, label, icon: Icon }) => (
                 <div
                   key={label}
-                  className="flex flex-col items-center text-center"
+                  className="flex flex-col items-center text-center px-1"
                 >
-                  <div className="flex items-center gap-2 text-slate-900 mb-1">
+                  <div className="flex items-center gap-1.5 text-slate-900 mb-0.5 sm:mb-1">
                     <Icon
-                      size={20}
+                      size={18}
                       className="text-violet-600 hidden sm:block"
                     />
-                    <span className="font-serif text-2xl md:text-3xl font-bold">
+                    <span className="font-serif text-xl sm:text-2xl md:text-3xl font-bold">
                       {value}
                     </span>
                   </div>
-                  <div className="text-slate-500 text-[10px] md:text-xs font-bold tracking-widest uppercase">
+                  <div className="text-slate-600 text-[9px] sm:text-[10px] md:text-xs font-bold tracking-wider sm:tracking-widest uppercase">
                     {label}
                   </div>
                 </div>

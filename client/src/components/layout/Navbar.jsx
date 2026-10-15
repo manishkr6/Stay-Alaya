@@ -103,7 +103,7 @@ export default function Navbar() {
                 e.currentTarget.style.display = "none";
               }}
             />
-            <span className="font-display font-semibold text-slate-900 text-lg hidden sm:block group-hover:text-primary-700 transition-colors">
+            <span className="font-display font-semibold text-slate-900 text-base sm:text-lg group-hover:text-primary-700 transition-colors">
               Stay <span className="text-primary-600">Alaya</span>
             </span>
           </Link>
@@ -277,8 +277,54 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="md:hidden max-w-7xl mx-auto mt-2 bg-white/95 border border-white/90 rounded-2xl shadow-lg backdrop-blur-xl animate-slide-up overflow-hidden">
-          <div className="px-4 py-4 space-y-1">
+        <div className="md:hidden max-w-7xl mx-auto mt-2 bg-white/95 border border-white/90 rounded-2xl shadow-xl backdrop-blur-xl animate-slide-up overflow-hidden">
+          {/* Mobile Search Bar */}
+          <form
+            onSubmit={(e) => {
+              handleNavSearch(e);
+              setMobileOpen(false);
+            }}
+            className="p-3 border-b border-slate-100 flex items-center gap-2"
+          >
+            <div className="flex-1 flex items-center bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary-200">
+              <Search size={15} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                placeholder="Search area (e.g. Tadong, Gangtok)..."
+                className="w-full px-2 py-1 text-sm bg-transparent border-0 outline-none focus:ring-0 text-slate-800"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-primary-600 rounded-xl"
+            >
+              Go
+            </button>
+          </form>
+
+          {/* User Profile Info if logged in */}
+          {isAuthenticated && currentUser && (
+            <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {currentUser.name?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900 truncate">
+                  {currentUser.name}
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {currentUser.email}
+                </p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full shrink-0">
+                {currentUser.role}
+              </span>
+            </div>
+          )}
+
+          <div className="px-3 py-3 space-y-1">
             <Link to="/" className={navLinkClass("/")}>
               <Home size={16} /> Home
             </Link>
@@ -308,6 +354,19 @@ export default function Navbar() {
               </div>
             ) : (
               <>
+                {(currentUser.role === "user" || currentUser.role === "student") && (
+                  <Link
+                    to="/dashboard"
+                    className="relative flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-700 hover:bg-primary-50 hover:text-primary-600 font-medium text-sm"
+                  >
+                    <Heart size={16} /> Saved PGs
+                    {savedCount > 0 && (
+                      <span className="ml-auto min-w-5 h-5 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                        {savedCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <Link
                   to={
                     currentUser.role === "admin"
@@ -332,7 +391,7 @@ export default function Navbar() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm text-left"
                 >
                   <LogOut size={16} /> Logout
                 </button>

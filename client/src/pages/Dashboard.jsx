@@ -138,20 +138,20 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
+          {/* Sidebar Tabs */}
           <aside className="lg:w-56 shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 space-y-1">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-2 sm:p-4 flex lg:flex-col overflow-x-auto gap-1.5 sm:gap-1">
               {TABS.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 lg:w-full ${
                     activeTab === t.id
                       ? "bg-primary-600 text-white shadow-sm"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <t.icon size={16} /> {t.label}
+                  <t.icon size={15} /> <span>{t.label}</span>
                 </button>
               ))}
             </div>

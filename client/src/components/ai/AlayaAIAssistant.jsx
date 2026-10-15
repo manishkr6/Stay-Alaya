@@ -119,15 +119,15 @@ export default function AlayaAIAssistant() {
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          className="fixed bottom-6 right-6 z-50 group flex items-center gap-2.5 bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 text-white pl-4 pr-5 py-3 rounded-full shadow-2xl hover:shadow-primary-500/30 hover:scale-105 active:scale-95 transition-all duration-300 ring-4 ring-white/60 dark:ring-slate-900/40"
+          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 group flex items-center gap-2 bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-primary-500/30 hover:scale-105 active:scale-95 transition-all duration-300 ring-4 ring-white/60 dark:ring-slate-900/40"
           aria-label="Open Alaya AI Assistant"
         >
           <div className="relative">
-            <Sparkles size={20} className="animate-spin-slow text-amber-300" />
+            <Sparkles size={18} className="animate-spin-slow text-amber-300" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full" />
           </div>
-          <span className="font-semibold text-sm tracking-wide">Ask Alaya AI</span>
+          <span className="font-semibold text-xs sm:text-sm tracking-wide">Ask Alaya AI</span>
         </button>
       )}
 
@@ -136,8 +136,8 @@ export default function AlayaAIAssistant() {
         <div
           className={`fixed z-50 transition-all duration-300 ${
             isMinimized
-              ? 'bottom-6 right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3'
-              : 'bottom-4 sm:bottom-6 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[420px] max-h-[85vh] h-[640px] bg-white rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden backdrop-blur-xl'
+              ? 'bottom-20 sm:bottom-6 right-4 sm:right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3'
+              : 'bottom-2 sm:bottom-6 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-[420px] max-h-[90vh] sm:max-h-[85vh] h-[560px] sm:h-[640px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden backdrop-blur-xl'
           }`}
         >
           {/* Header */}

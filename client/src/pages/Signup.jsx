@@ -71,7 +71,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="relative min-h-screen pt-16 overflow-hidden bg-slate-100 -mt-16">
+    <div className="relative min-h-screen pt-16 overflow-hidden bg-slate-100">
       <div className="lg:hidden absolute inset-0">
         <img
           src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1400&q=80"
@@ -81,7 +81,7 @@ export default function Signup() {
         <div className="absolute inset-0 bg-slate-900/55" />
       </div>
 
-      <div className="relative z-10 min-h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-2">
+      <div className="relative z-10 min-h-[calc(100svh-4rem)] grid grid-cols-1 lg:grid-cols-2">
         <section className="hidden lg:flex relative p-10 xl:p-14 overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1400&q=80"
@@ -129,7 +129,7 @@ export default function Signup() {
         </section>
 
         <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10">
-          <div className="w-full max-w-md rounded-3xl border border-white/70 lg:border-slate-200 bg-white/95 shadow-2xl lg:shadow-xl backdrop-blur-md p-6 sm:p-8 mt-12">
+          <div className="w-full max-w-md rounded-3xl border border-white/70 lg:border-slate-200 bg-white/95 shadow-2xl lg:shadow-xl backdrop-blur-md p-6 sm:p-8 my-6 sm:my-8">
             {submittedEmail ? (
               <div className="text-center py-2 animate-fade-in">
                 <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm ring-8 ring-primary-50/50">

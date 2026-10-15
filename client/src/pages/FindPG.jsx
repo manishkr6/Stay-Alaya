@@ -229,12 +229,12 @@ export default function FindPG() {
                 </div>
 
                 {/* Dual Search Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0 px-1 pb-1 md:pb-0">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 shrink-0 px-1 pb-1 md:pb-0">
                   {/* Normal Search Button */}
                   <button
                     type="button"
                     onClick={handleNormalSearch}
-                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all shadow-xs border-0"
+                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all shadow-xs border-0"
                     title="Normal search by keyword or location"
                   >
                     <Search size={14} className="text-slate-500" />
@@ -246,18 +246,18 @@ export default function FindPG() {
                     type="button"
                     onClick={() => handleAiSearch()}
                     disabled={!searchQuery.trim() || isAiSearching}
-                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1.5 px-5 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/35 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all border-0"
+                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/35 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all border-0"
                     title="Smart Search using Gemini AI"
                   >
                     {isAiSearching ? (
                       <>
                         <RefreshCw size={14} className="animate-spin text-white" />
-                        <span>Analyzing...</span>
+                        <span>AI...</span>
                       </>
                     ) : (
                       <>
                         <Sparkles size={14} className="text-amber-300 animate-pulse" />
-                        <span>Search with AI</span>
+                        <span>AI Search</span>
                       </>
                     )}
                   </button>
@@ -360,11 +360,20 @@ export default function FindPG() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-slate-900">Filters</h3>
 
-                {activeFilterCount > 0 && (
-                  <button onClick={clearFilters} className="text-xs text-primary-600 flex items-center gap-1">
-                    <X size={12} /> Clear
+                <div className="flex items-center gap-3">
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearFilters} className="text-xs text-primary-600 flex items-center gap-1 font-medium">
+                      <X size={12} /> Clear
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setFiltersOpen(false)}
+                    className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    title="Close filters"
+                  >
+                    <X size={18} />
                   </button>
-                )}
+                </div>
               </div>
 
               <FilterSection title="Location">
@@ -417,6 +426,14 @@ export default function FindPG() {
                 </div>
               </FilterSection>
 
+              {/* Mobile apply and close button */}
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="lg:hidden w-full btn-primary text-sm py-3 mt-4 flex items-center justify-center font-medium"
+              >
+                Apply & View ({filtered.length} Results)
+              </button>
             </div>
           </aside>
 

@@ -39,19 +39,19 @@ export function SearchBar({ onSearch, compact = false }) {
   const cities = ['Gangtok', 'Singtam', 'Namchi', 'Jorethang', 'Gyalshing', 'Mangan', 'Ravangla', 'Pakyong', 'Rangpo'];
 
   return (
-    <div className={`flex flex-col sm:flex-row gap-2 ${compact ? '' : 'bg-white rounded-2xl p-2 shadow-xl'}`}>
-      <div className={`flex items-center gap-2 ${compact ? 'border border-slate-200 rounded-xl px-3 py-2' : 'px-4 py-2 flex-1'}`}>
-        <MapPin size={16} className="text-primary-400 shrink-0" />
+    <div className={`flex flex-col sm:flex-row gap-2 ${compact ? '' : 'bg-white rounded-2xl p-2.5 sm:p-2 shadow-xl border border-slate-100'}`}>
+      <div className={`flex items-center gap-2 ${compact ? 'border border-slate-200 rounded-xl px-3 py-2' : 'px-4 py-2.5 sm:py-2 border-b sm:border-b-0 sm:border-r border-slate-100 flex-1'}`}>
+        <MapPin size={16} className="text-primary-500 shrink-0" />
         <select value={location} onChange={e => setLocation(e.target.value)}
-          className="flex-1 bg-transparent text-sm text-slate-700 min-w-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none">
+          className="flex-1 bg-transparent text-sm text-slate-700 min-w-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer">
           <option value="">Where in Sikkim?</option>
           {cities.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      <div className={`flex items-center gap-2 ${compact ? 'border border-slate-200 rounded-xl px-3 py-2' : 'px-4 py-2 sm:border-l border-slate-100 flex-1'}`}>
-        <DollarSign size={16} className="text-primary-400 shrink-0" />
+      <div className={`flex items-center gap-2 ${compact ? 'border border-slate-200 rounded-xl px-3 py-2' : 'px-4 py-2.5 sm:py-2 flex-1'}`}>
+        <DollarSign size={16} className="text-primary-500 shrink-0" />
         <select value={maxPrice} onChange={e => setMaxPrice(e.target.value)}
-          className="flex-1 bg-transparent text-sm text-slate-700 min-w-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none">
+          className="flex-1 bg-transparent text-sm text-slate-700 min-w-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer">
           <option value="">Price Range</option>
           <option value="3000">Up to ₹3,000</option>
           <option value="5000">Up to ₹5,000</option>
@@ -59,7 +59,7 @@ export function SearchBar({ onSearch, compact = false }) {
           <option value="10000">Up to ₹10,000</option>
         </select>
       </div>
-      <button onClick={handleSearch} className="btn-primary flex items-center justify-center gap-2 shrink-0">
+      <button onClick={handleSearch} className="btn-primary flex items-center justify-center gap-2 shrink-0 py-3 sm:py-2.5 w-full sm:w-auto">
         <Search size={16} /> Search
       </button>
     </div>
