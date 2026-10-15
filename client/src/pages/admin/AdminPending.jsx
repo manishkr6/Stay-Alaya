@@ -1,13 +1,26 @@
-import { useState } from 'react';
-import { Check, X, ChevronDown, ChevronUp, Home, Trash2, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, X, ChevronDown, ChevronUp, Home, Trash2, AlertTriangle, Info, CheckCircle2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import Modal from '../../components/ui/Modal';
 import StatusPill from '../../components/ui/StatusPill';
 
 export default function AdminPending() {
-  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users } = useData();
+  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users, fetchAdminData } = useData();
   const [expanded, setExpanded] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Always fetch latest data on mount
+  useEffect(() => {
+    fetchAdminData?.();
+  }, [fetchAdminData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchAdminData?.();
+    setIsRefreshing(false);
+    toast.success('Approvals queue refreshed');
+  };
 
   // Deletion modals
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(null);
@@ -76,9 +89,19 @@ export default function AdminPending() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-slate-900">Pending Approvals</h1>
-        <p className="text-slate-500 text-sm mt-1">Review owner deletion requests and manage moderation queues</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-slate-900">Pending Approvals</h1>
+          <p className="text-slate-500 text-sm mt-1">Review owner deletion requests and manage moderation queues</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs"
+        >
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary-600' : ''} />
+          Refresh Queue
+        </button>
       </div>
 
       {/* Info notice */}

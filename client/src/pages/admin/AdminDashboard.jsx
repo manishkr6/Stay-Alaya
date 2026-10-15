@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Clock, Users, UserCheck, TrendingUp } from "lucide-react";
 import { useData } from "../../hooks/useData";
@@ -15,8 +16,12 @@ const TYPE_ICONS = {
 };
 
 export default function AdminDashboard() {
-  const { pgs, users, notifications } = useData();
+  const { pgs, users, notifications, fetchAdminData } = useData();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchAdminData?.();
+  }, [fetchAdminData]);
 
   const stats = [
     {
@@ -127,6 +132,14 @@ export default function AdminDashboard() {
                     <p className="text-slate-400 text-xs mt-1">
                       {formatDistanceToNow(n.createdAt)}
                     </p>
+                    {n.type === "DELETE_PG" && (
+                      <button
+                        onClick={() => navigate("/admin/pending")}
+                        className="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition-colors inline-flex items-center gap-1 shadow-xs"
+                      >
+                        Review & Approve Delete →
+                      </button>
+                    )}
                   </div>
                   {!n.isRead && (
                     <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />

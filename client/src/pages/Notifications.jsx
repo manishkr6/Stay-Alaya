@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useAuth } from '../hooks/useAuth';
@@ -23,6 +24,7 @@ const TYPE_META = {
 export default function Notifications() {
   const { currentUser } = useAuth();
   const { notifications, markNotificationsRead, markOneRead, getUnreadCount } = useData();
+  const navigate = useNavigate();
   const [activeType, setActiveType] = useState('ALL');
 
   const types = useMemo(() => {
@@ -101,6 +103,17 @@ export default function Notifications() {
                   </div>
                   <p className="text-sm text-slate-700 leading-relaxed">{n.message}</p>
                   <p className="text-slate-400 text-xs mt-1">{formatDistanceToNow(n.createdAt)}</p>
+                  {currentUser?.role === 'admin' && n.type === 'DELETE_PG' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/admin/pending');
+                      }}
+                      className="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition-colors inline-flex items-center gap-1 shadow-xs"
+                    >
+                      Review & Approve Delete →
+                    </button>
+                  )}
                 </div>
                 {!n.isRead && <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-2" />}
               </div>

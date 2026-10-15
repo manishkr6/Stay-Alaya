@@ -271,11 +271,11 @@ export function DataProvider({ children }) {
     };
   }, [currentUser?.id, currentUser?.role, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications, fetchAdminData]);
 
-  // Realtime subscription for instant notifications without page refresh
+  // Realtime subscription for instant notifications and listings updates without page refresh
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const channel = supabase
+    const notifChannel = supabase
       .channel(`realtime-notifications-${currentUser.id}`)
       .on(
         'postgres_changes',
@@ -321,6 +321,11 @@ export function DataProvider({ children }) {
               icon: '🔔',
               duration: 5000,
             });
+
+            // Automatically refresh admin listings when relevant notifications arrive
+            if (currentUser.role === 'admin') {
+              fetchAdminData();
+            }
           } else if (payload.eventType === 'UPDATE') {
             setNotifications((prev) =>
               prev.map((n) =>
@@ -341,10 +346,31 @@ export function DataProvider({ children }) {
       )
       .subscribe();
 
+    const pgChannel = supabase
+      .channel(`realtime-pgs-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pg_listings',
+        },
+        async () => {
+          if (currentUser.role === 'admin') {
+            await fetchAdminData();
+          } else {
+            await fetchApprovedPgsAndReviews();
+            if (currentUser.role === 'owner') await fetchOwnerPgs();
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(notifChannel);
+      supabase.removeChannel(pgChannel);
     };
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs]);
 
   // ── PG Queries ──
   const getApprovedPGs = useCallback(
@@ -900,6 +926,8 @@ export function DataProvider({ children }) {
         markNotificationsRead,
         markOneRead,
         getUnreadCount,
+        fetchAdminData,
+        fetchNotifications,
       }}
     >
       {children}
