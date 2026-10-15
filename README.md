@@ -32,16 +32,25 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### 2. Environment Variables
 
-Create `client/.env` (pre-configured with Supabase project):
+Copy `client/.env.example` to `client/.env`:
+
+```bash
+cp client/.env.example client/.env
+```
+
+Configure your environment variables in `client/.env`:
 
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=https://dwgflxqjzribjgdwyhmd.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3Z2ZseHFqenJpYmpnZHd5aG1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5Nzg3ODIsImV4cCI6MjEwNzU1NDc4Mn0.CJWybLdg6hXw5IuRw7BPMr0JKWiEM-GdjEUocMbHba4
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Google Gemini API Key (Required for AI PG Assistant & AI Smart Search)
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 
 # Cloudinary (Optional for uploads - fallbacks to local preview if not provided)
-VITE_CLOUDINARY_CLOUD_NAME=
-VITE_CLOUDINARY_UPLOAD_PRESET=
+VITE_CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=your_cloudinary_upload_preset
 ```
 
 ---
@@ -52,7 +61,7 @@ Production Admin account configured in Supabase:
 
 | Role  | Email | Capabilities |
 | ----- | ----- | ------------ |
-| **Admin** | `manishkr8927@gmail.com` | Approves PG listings, verifies KYC, changes user roles, manages users & deletion requests |
+| **Admin** | `admin@stayalaya.com` (or your configured admin email) | Approves PG listings, verifies KYC, changes user roles, manages users & deletion requests |
 
 Users and owners can self-register using the **Sign Up** page. Admins can promote any user to an Owner or Admin directly from the **Admin Users Management** panel (`/admin/users`) or the Supabase Dashboard.
 
