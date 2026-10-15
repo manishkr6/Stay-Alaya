@@ -174,10 +174,10 @@ export default function AddPG({ editMode = false, existingPG = null }) {
     try {
       if (editMode && existingPG) {
         await updatePG(existingPG.id, pgData);
-        toast.success('PG updated! Awaiting admin re-approval.');
+        toast.success('PG updated successfully! Changes are now live.');
       } else {
         await addPG(pgData, currentUser.id);
-        toast.success('PG listed successfully!');
+        toast.success('PG listed successfully! Your property is now live.');
       }
       navigate('/owner');
     } catch (e) {
@@ -195,9 +195,9 @@ export default function AddPG({ editMode = false, existingPG = null }) {
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold text-slate-900">{editMode ? 'Edit PG Listing' : 'Add New PG'}</h1>
           {editMode && (
-            <div className="flex items-center gap-2 mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-              <p className="text-amber-700 text-sm">Editing will require admin re-approval before going live.</p>
+            <div className="flex items-center gap-2 mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+              <Sparkles size={15} className="text-emerald-600 shrink-0" />
+              <p className="text-emerald-700 text-sm">Your updates will be published immediately to your live listing.</p>
             </div>
           )}
         </div>

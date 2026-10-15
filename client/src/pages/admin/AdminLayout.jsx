@@ -17,7 +17,7 @@ import { useData } from "../../hooks/useData";
 
 const NAV = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { path: "/admin/pending", label: "Pending PGs", icon: Clock },
+  { path: "/admin/pending", label: "Pending Approvals", icon: Clock },
   { path: "/admin/pgs", label: "All PGs", icon: List },
   { path: "/admin/users", label: "Users", icon: Users },
   { path: "/admin/notifications", label: "Notifications", icon: Bell },
@@ -33,7 +33,10 @@ export default function AdminLayout() {
 
   const pendingCount = pgs.filter(
     (p) =>
-      (p.status === "pending" || p.status === "pending_update") && !p.isDeleted,
+      (p.status === "pending_delete" ||
+        p.status === "pending" ||
+        p.status === "pending_update") &&
+      !p.isDeleted,
   ).length;
   const unreadCount = getUnreadCount();
 

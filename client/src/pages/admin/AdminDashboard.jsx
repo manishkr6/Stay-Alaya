@@ -146,7 +146,7 @@ export default function AdminDashboard() {
                 className="w-full flex items-center justify-between p-3.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl transition-colors text-sm font-medium"
               >
                 <span className="flex items-center gap-2">
-                  <Clock size={15} /> View Pending PGs
+                  <Clock size={15} /> View Pending Approvals
                 </span>
                 <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold">
                   {

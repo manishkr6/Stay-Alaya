@@ -18,10 +18,14 @@ export default function AdminAllPGs() {
     return result;
   }, [pgs, search, statusFilter]);
 
-  const handleDelete = () => {
-    deletePG(deleteId);
-    setDeleteId(null);
-    toast.success('PG deleted');
+  const handleDelete = async () => {
+    try {
+      await deletePG(deleteId);
+      setDeleteId(null);
+      toast.success('PG deleted');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to delete PG');
+    }
   };
 
   return (
@@ -41,6 +45,7 @@ export default function AdminAllPGs() {
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input-field w-auto text-sm">
           <option value="">All Status</option>
           <option value="approved">Approved</option>
+          <option value="pending_delete">Pending Delete</option>
           <option value="pending">Pending</option>
           <option value="pending_update">Pending Update</option>
           <option value="rejected">Rejected</option>

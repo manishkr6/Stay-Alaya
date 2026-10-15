@@ -54,6 +54,8 @@ export function DataProvider({ children }) {
       averageRating: Number(pg.average_rating || pg.averageRating || 0),
       totalReviews: Number(pg.total_reviews || pg.totalReviews || 0),
       status: pg.status || (pg.is_verified ? 'approved' : 'pending'),
+      deleteRequestReason: pg.delete_request_reason || pg.deleteRequestReason || '',
+      rejectionReason: pg.rejection_reason || pg.rejectionReason || '',
       isVerified: hasDocuments,
       hasDocuments,
       isAvailable: pg.is_available !== false,
@@ -397,13 +399,14 @@ export function DataProvider({ children }) {
           rules: pgData.rules || [],
           images: pgData.images || [],
           contact_number: pgData.contactNumber,
-          is_verified: false,
-          status: 'pending',
+          is_verified: true,
+          status: 'approved',
         })
         .select()
         .single();
 
       if (error) throw error;
+      await fetchApprovedPgsAndReviews();
       await fetchOwnerPgs();
       if (currentUser?.role === 'admin') await fetchAdminData();
 
@@ -411,7 +414,7 @@ export function DataProvider({ children }) {
       if (currentUid) {
         await createNotification({
           userId: currentUid,
-          message: `Your PG listing "${pgData.title}" has been submitted for admin approval.`,
+          message: `Your PG listing "${pgData.title}" has been published and is now live.`,
           type: 'ADD_PG',
           relatedId: data?.id,
         });
@@ -420,14 +423,14 @@ export function DataProvider({ children }) {
       // Notify Admin
       await createNotification({
         userId: null,
-        message: `New PG "${pgData.title}" submitted by ${currentUser?.name || 'an owner'} for approval.`,
+        message: `New PG "${pgData.title}" was listed by ${currentUser?.name || 'an owner'}.`,
         type: 'ADD_PG',
         relatedId: data?.id,
       });
 
       return data;
     },
-    [currentUser?.id, currentUser?.name, currentUser?.role, fetchOwnerPgs, fetchAdminData, createNotification]
+    [currentUser?.id, currentUser?.name, currentUser?.role, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
   );
 
   const updatePG = useCallback(
@@ -447,18 +450,20 @@ export function DataProvider({ children }) {
           rules: pgData.rules,
           images: pgData.images,
           contact_number: pgData.contactNumber,
-          status: 'pending_update',
+          is_verified: true,
+          status: 'approved',
         })
         .eq('id', id);
 
       if (error) throw error;
+      await fetchApprovedPgsAndReviews();
       await fetchOwnerPgs();
       if (currentUser?.role === 'admin') await fetchAdminData();
 
       if (currentUser?.id) {
         await createNotification({
           userId: currentUser.id,
-          message: `Your updates to "${pgData.title}" have been saved and sent for admin review.`,
+          message: `Your updates to "${pgData.title}" have been saved and are now live.`,
           type: 'UPDATE_PG',
           relatedId: id,
         });
@@ -466,19 +471,29 @@ export function DataProvider({ children }) {
 
       await createNotification({
         userId: null,
-        message: `PG "${pgData.title}" was updated by ${currentUser?.name || 'Owner'} and is pending review.`,
+        message: `PG "${pgData.title}" was updated by ${currentUser?.name || 'an owner'}.`,
         type: 'UPDATE_PG',
         relatedId: id,
       });
     },
-    [currentUser?.id, currentUser?.name, currentUser?.role, fetchOwnerPgs, fetchAdminData, createNotification]
+    [currentUser?.id, currentUser?.name, currentUser?.role, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
   );
 
   const deletePG = useCallback(
     async (id, reason = '') => {
       if (currentUser?.role === 'admin') {
+        const target = pgs.find((p) => String(p.id) === String(id));
         const { error } = await supabase.from('pg_listings').delete().eq('id', id);
         if (error) throw error;
+        if (target?.ownerId && String(target.ownerId) !== String(currentUser?.id)) {
+          await createNotification({
+            userId: target.ownerId,
+            message: `Your PG listing "${target.title}" was deleted by admin.`,
+            type: 'DELETE_PG',
+            relatedId: id,
+          });
+        }
+        await fetchApprovedPgsAndReviews();
         await fetchAdminData();
       } else {
         const { error } = await supabase
@@ -488,7 +503,7 @@ export function DataProvider({ children }) {
         if (error) throw error;
         await fetchOwnerPgs();
 
-        const target = pgs.find((p) => String(p.id) === String(id));
+        const target = (ownerPgs.length > 0 ? ownerPgs : pgs).find((p) => String(p.id) === String(id));
         if (currentUser?.id) {
           await createNotification({
             userId: currentUser.id,
@@ -505,7 +520,56 @@ export function DataProvider({ children }) {
         });
       }
     },
-    [currentUser?.id, currentUser?.name, currentUser?.role, pgs, fetchAdminData, fetchOwnerPgs, createNotification]
+    [currentUser?.id, currentUser?.name, currentUser?.role, pgs, ownerPgs, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, createNotification]
+  );
+
+  const approveDeletePG = useCallback(
+    async (id) => {
+      const target = pgs.find((p) => String(p.id) === String(id));
+      const { error } = await supabase.from('pg_listings').delete().eq('id', id);
+      if (error) throw error;
+
+      if (target?.ownerId) {
+        await createNotification({
+          userId: target.ownerId,
+          message: `Your deletion request for "${target.title}" was approved by admin, and the listing has been removed.`,
+          type: 'DELETE_PG',
+          relatedId: id,
+        });
+      }
+
+      await fetchApprovedPgsAndReviews();
+      await fetchAdminData();
+    },
+    [pgs, createNotification, fetchApprovedPgsAndReviews, fetchAdminData]
+  );
+
+  const rejectDeletePG = useCallback(
+    async (id, reason = '') => {
+      const target = pgs.find((p) => String(p.id) === String(id));
+      const { error } = await supabase
+        .from('pg_listings')
+        .update({
+          status: 'approved',
+          is_verified: true,
+          delete_request_reason: null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+
+      if (target?.ownerId) {
+        await createNotification({
+          userId: target.ownerId,
+          message: `Your deletion request for "${target.title}" was declined by admin. Reason: ${reason || 'Listing must remain active'}`,
+          type: 'PG_STATUS_UPDATE',
+          relatedId: id,
+        });
+      }
+
+      await fetchApprovedPgsAndReviews();
+      await fetchAdminData();
+    },
+    [pgs, createNotification, fetchApprovedPgsAndReviews, fetchAdminData]
   );
 
   const approvePG = useCallback(
@@ -818,6 +882,8 @@ export function DataProvider({ children }) {
         addPG,
         updatePG,
         deletePG,
+        approveDeletePG,
+        rejectDeletePG,
         approvePG,
         rejectPG,
         savePGToggle,

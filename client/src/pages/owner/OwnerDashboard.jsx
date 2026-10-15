@@ -30,7 +30,7 @@ export default function OwnerDashboard() {
   const stats = {
     total: myPGs.length,
     approved: myPGs.filter(p => p.status === 'approved').length,
-    pending: myPGs.filter(p => p.status === 'pending' || p.status === 'pending_update' || p.status === 'pending_delete').length,
+    pendingDelete: myPGs.filter(p => p.status === 'pending_delete').length,
     rejected: myPGs.filter(p => p.status === 'rejected').length,
   };
 
@@ -43,9 +43,9 @@ export default function OwnerDashboard() {
       await deletePG(deleteId, deleteReason.trim());
       setDeleteId(null);
       setDeleteReason('');
-      toast.success('Deletion request sent to admin');
+      toast.success('Deletion request submitted to admin for approval');
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Failed to send deletion request');
+      toast.error(e?.message || 'Failed to send deletion request');
     }
   };
 
@@ -124,8 +124,8 @@ export default function OwnerDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: 'Total', value: stats.total, color: 'text-primary-600', bg: 'bg-primary-50' },
-            { label: 'Approved', value: stats.approved, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Pending', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Live / Active', value: stats.approved, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Pending Delete', value: stats.pendingDelete, color: 'text-rose-600', bg: 'bg-rose-50' },
             { label: 'Rejected', value: stats.rejected, color: 'text-red-600', bg: 'bg-red-50' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl p-4 sm:p-5 border border-white`}>
@@ -191,6 +191,13 @@ export default function OwnerDashboard() {
                       </span>
                     </div>
 
+                    {pg.status === 'pending_delete' && (
+                      <div className="mt-2 bg-rose-50 border border-rose-100 text-rose-700 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <Clock size={12} className="shrink-0" />
+                        Deletion request submitted — pending admin approval
+                      </div>
+                    )}
+
                     {pg.rejectionReason && (
                       <p className="text-red-500 text-xs mt-2 bg-red-50 px-3 py-1.5 rounded-lg">
                         Rejection reason: {pg.rejectionReason}
@@ -207,12 +214,18 @@ export default function OwnerDashboard() {
                   >
                     <Edit2 size={13} /> Edit
                   </button>
-                  <button
-                    onClick={() => setDeleteId(pg.id)}
-                    className="flex-1 sm:flex-initial w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={13} /> Delete
-                  </button>
+                  {pg.status === 'pending_delete' ? (
+                    <span className="flex-1 sm:flex-initial w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-rose-50 text-rose-600 rounded-xl border border-rose-200 cursor-not-allowed">
+                      <Clock size={12} /> Pending Delete
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteId(pg.id)}
+                      className="flex-1 sm:flex-initial w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
