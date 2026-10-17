@@ -133,13 +133,13 @@ export default function About() {
       gradient: "from-primary-500 to-cyan-500",
       social: true,
     },
-    {
-      name: "Rohit Singh",
-      role: "Full Stack Developer",
-      desc: "Focused on building reliable full-stack features with clean structure and smooth user flows.",
-      initials: "RS",
-      gradient: "from-emerald-500 to-teal-500",
-    },
+    // {
+    //   name: "Rohit Singh",
+    //   role: "Full Stack Developer",
+    //   desc: "Focused on building reliable full-stack features with clean structure and smooth user flows.",
+    //   initials: "RS",
+    //   gradient: "from-emerald-500 to-teal-500",
+    // },
     {
       name: "Anu Kumari",
       role: "Full Stack Developer",
