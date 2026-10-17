@@ -19,6 +19,9 @@ import {
   Sparkles,
   RefreshCw,
   CheckCircle2,
+  Star,
+  PenLine,
+  MessageSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useData } from "../hooks/useData";
@@ -61,6 +64,7 @@ export default function PGDetails() {
   const [reportReason, setReportReason] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
   const [aiInsight, setAiInsight] = useState(null);
   const [loadingAiInsight, setLoadingAiInsight] = useState(false);
 
@@ -108,13 +112,39 @@ export default function PGDetails() {
   const savedPGs = currentUser ? getSavedPGs(currentUser.id) : [];
   const isSaved = savedPGs.some((s) => s.id === pg.id);
   const reviews = getPGReviews(pg.id);
-  const owner = users.find((u) => u.id === pg.ownerId);
-  const isOwnPG = !!currentUser?.id && currentUser.id === pg.ownerId;
-  const canReview =
-    !!currentUser &&
-    !isOwnPG &&
-    (currentUser.role === "user" || currentUser.role === "owner");
+  const owner = users?.find((u) => u.id === pg.ownerId);
+  const isOwnPG = !!currentUser?.id && String(currentUser.id) === String(pg.ownerId);
+
+  // Resolve real owner name & phone number from all available sources
+  const ownerName =
+    (isOwnPG && currentUser?.name) ||
+    owner?.name ||
+    pg?.ownerName ||
+    pg?.profiles?.full_name ||
+    'Property Owner';
+  const ownerInitial = (ownerName && ownerName !== 'Property Owner' ? ownerName.charAt(0) : (isOwnPG ? currentUser?.name?.charAt(0) : 'P')).toUpperCase();
+  const rawContactPhone =
+    pg?.contactNumber ||
+    pg?.contact_number ||
+    (isOwnPG && currentUser?.phone) ||
+    owner?.phone ||
+    pg?.profiles?.phone ||
+    '+919876543210';
+  const canReview = !isOwnPG;
   const formatPrice = (p) => new Intl.NumberFormat("en-IN").format(p);
+
+  const handleOpenReview = () => {
+    if (!currentUser) {
+      toast("Please log in to write a review", { icon: "🔒" });
+      navigate("/login", { state: { from: `/pg/${pg.id}` } });
+      return;
+    }
+    if (isOwnPG) {
+      toast.error("You cannot review your own PG listing.");
+      return;
+    }
+    setReviewOpen(true);
+  };
 
   const handleSave = () => {
     if (!currentUser) {
@@ -146,33 +176,36 @@ export default function PGDetails() {
 
   const handleReview = async () => {
     if (!currentUser) {
-      navigate("/login");
+      navigate("/login", { state: { from: `/pg/${pg.id}` } });
       return;
     }
     if (isOwnPG) {
       toast.error("You can't review your own PG");
       return;
     }
-    if (reviewComment.trim().length < 10) {
-      toast.error("Comment must be at least 10 characters");
+    if (!reviewComment.trim()) {
+      toast.error("Please share a brief comment about your experience");
       return;
     }
+    setSubmittingReview(true);
     try {
       await addReview(
         pg.id,
         currentUser.id,
-        currentUser.name,
+        currentUser.name || "Student",
         reviewRating,
-        reviewComment,
+        reviewComment.trim(),
       );
       setReviewOpen(false);
       setReviewComment("");
       setReviewRating(5);
-      toast.success("Review submitted!");
+      toast.success("Review submitted! Thank you for your feedback.");
     } catch (e) {
       toast.error(
         e?.response?.data?.message || e.message || "Failed to submit review",
       );
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -186,6 +219,17 @@ export default function PGDetails() {
         )
       : 0,
   }));
+
+  const sortedReviews = [...reviews].sort((a, b) => {
+    const timeA = new Date(a.rawCreatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.rawCreatedAt || b.createdAt || 0).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    return Number(b.rating || 0) - Number(a.rating || 0);
+  });
+
+  const realAvgRating = reviews.length > 0
+    ? Number((reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / reviews.length).toFixed(1))
+    : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20 lg:pt-24">
@@ -284,6 +328,21 @@ export default function PGDetails() {
                   <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm">
                     {pg.genderPreference}
                   </span>
+                  {reviews.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("reviews")}
+                      className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
+                    >
+                      <Star size={13} className="text-[#f5a623] fill-[#f5a623]" />
+                      <span>{realAvgRating.toFixed(1)}</span>
+                      <span className="text-amber-700/70 font-normal">({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-medium">
+                      ★ New Listing
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -388,29 +447,71 @@ export default function PGDetails() {
               {/* Tabs */}
               <div className="border-t border-slate-100 pt-6">
                 <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6 w-fit">
-                  {["reviews", "rules", "location"].map((tab) => (
+                  {[
+                    { id: "reviews", label: `Reviews (${reviews.length})` },
+                    { id: "rules", label: "Rules" },
+                    { id: "location", label: "Location" },
+                  ].map((tab) => (
                     <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-5 py-2 rounded-lg text-sm font-medium transition-all capitalize ${activeTab === tab ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-5 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                        activeTab === tab.id
+                          ? "bg-white text-primary-600 shadow-sm font-semibold"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
                     >
-                      {tab}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
+
                 {activeTab === "reviews" && (
                   <div>
+                    {/* Reviews Header Bar with Action Button */}
+                    <div className="flex items-center justify-between gap-4 mb-6 flex-wrap pb-4 border-b border-slate-100">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                          Student & Tenant Reviews
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Authentic experiences and ratings from students who stayed here
+                        </p>
+                      </div>
+
+                      {!isOwnPG && reviews.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleOpenReview}
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-primary-700 hover:from-primary-900 hover:to-primary-800 text-white font-semibold text-xs sm:text-sm shadow-sm hover:shadow transition-all cursor-pointer"
+                        >
+                          <PenLine size={14} className="text-[#f5a623]" />
+                          Write a Review
+                        </button>
+                      )}
+                      {isOwnPG && (
+                        <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-medium">
+                          Property Owner (Tenants can review your PG)
+                        </span>
+                      )}
+                    </div>
+
                     {reviews.length > 0 && (
-                      <div className="flex gap-8 mb-6 p-5 bg-slate-50 rounded-2xl">
-                        <div className="text-center">
+                      <div className="flex gap-8 mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="text-center min-w-[120px]">
                           <div className="text-5xl font-bold font-display text-slate-900">
-                            {pg.averageRating || 0}
+                            {realAvgRating.toFixed(1)}
                           </div>
-                          <StarRating
-                            rating={Math.round(pg.averageRating || 0)}
-                          />
+                          <div className="flex justify-center mt-1">
+                            <StarRating
+                              rating={Math.round(realAvgRating)}
+                            />
+                          </div>
                           <p className="text-slate-500 text-xs mt-1">
-                            {pg.totalReviews} reviews
+                            {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
                           </p>
                         </div>
                         <div className="flex-1 space-y-2">
@@ -436,24 +537,12 @@ export default function PGDetails() {
                         </div>
                       </div>
                     )}
-                    {canReview && (
-                      <button
-                        onClick={() => setReviewOpen(true)}
-                        className="btn-primary text-sm mb-6"
-                      >
-                        Write a Review
-                      </button>
-                    )}
-                    {isOwnPG && (
-                      <p className="text-slate-500 text-sm mb-6">
-                        You can't review your own listed PG.
-                      </p>
-                    )}
+
                     <div className="space-y-4">
-                      {reviews.map((r) => (
+                      {sortedReviews.map((r, idx) => (
                         <div
                           key={r.id}
-                          className="p-5 bg-white rounded-xl border border-slate-100"
+                          className="p-5 bg-white rounded-xl border border-slate-100 shadow-2xs hover:border-slate-200 transition-colors"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-3">
@@ -461,9 +550,21 @@ export default function PGDetails() {
                                 {r.userName?.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-medium text-slate-900 text-sm">
-                                  {r.userName}
-                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-semibold text-slate-900 text-sm">
+                                    {r.userName}
+                                  </p>
+                                  {idx === 0 && (
+                                    <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-200">
+                                      Newest Review
+                                    </span>
+                                  )}
+                                  {r.rating === 5 && idx > 0 && (
+                                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                                      Top Rated
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-slate-400 text-xs">
                                   {r.createdAt}
                                 </p>
@@ -476,10 +577,33 @@ export default function PGDetails() {
                           </p>
                         </div>
                       ))}
+
                       {reviews.length === 0 && (
-                        <p className="text-slate-500 text-sm py-4">
-                          No reviews yet. Be the first!
-                        </p>
+                        <div className="text-center py-12 px-6 bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
+                          <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-100 text-[#f5a623]">
+                            <Star size={28} className="fill-[#f5a623]" />
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-base mb-1">
+                            No reviews yet for this PG
+                          </h4>
+                          <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto mb-5 leading-relaxed">
+                            Have you stayed here or visited this property? Be the first to share your honest experience with food, amenities, and host to help fellow students!
+                          </p>
+                          {!isOwnPG ? (
+                            <button
+                              type="button"
+                              onClick={handleOpenReview}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-primary-700 hover:from-primary-900 hover:to-primary-800 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
+                            >
+                              <PenLine size={15} className="text-[#f5a623]" />
+                              Write the First Review
+                            </button>
+                          ) : (
+                            <p className="text-xs text-slate-400">
+                              Reviews from tenants will appear here as soon as they are submitted.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -539,14 +663,16 @@ export default function PGDetails() {
                   Property Owner
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-lg">
-                    {owner?.name?.charAt(0) || "O"}
+                  <div className="w-12 h-12 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
+                    {ownerInitial}
                   </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">
-                      {owner?.name || "Owner"}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900 truncate">
+                      {ownerName}
                     </p>
-                    <p className="text-slate-500 text-xs">Property Owner</p>
+                    <p className="text-slate-500 text-xs">
+                      {rawContactPhone ? `Verified Host · ${rawContactPhone}` : 'Property Owner'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -558,13 +684,13 @@ export default function PGDetails() {
                 </p>
                 <div className="space-y-3">
                   <a
-                    href={`tel:${pg.contactNumber}`}
-                    className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-xl transition-colors text-sm"
+                    href={`tel:${rawContactPhone}`}
+                    className="w-full flex items-center justify-center gap-2 bg-[#0f2547] hover:bg-[#16335d] text-white font-medium py-3 rounded-xl transition-colors text-sm shadow-xs"
                   >
                     <Phone size={16} /> Call Owner
                   </a>
                   <a
-                    href={`https://wa.me/${pg.contactNumber.replace(/\D/g, "")}`}
+                    href={`https://wa.me/${rawContactPhone.replace(/\D/g, "")}`}
                     target="_blank"
                     rel="noreferrer"
                     className="w-full flex items-center justify-center gap-2 border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-medium py-3 rounded-xl transition-colors text-sm"
@@ -586,6 +712,17 @@ export default function PGDetails() {
                 <Heart size={16} fill={isSaved ? "currentColor" : "none"} />
                 {isSaved ? "Saved ✓" : "Save Property"}
               </button>
+
+              {!isOwnPG && (
+                <button
+                  type="button"
+                  onClick={handleOpenReview}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 hover:border-primary-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-primary-600 font-medium text-xs sm:text-sm transition-all cursor-pointer shadow-2xs"
+                >
+                  <Star size={15} className="text-[#f5a623] fill-[#f5a623]" />
+                  Write a Review
+                </button>
+              )}
 
               <div className="text-center">
                 <button
@@ -668,35 +805,47 @@ export default function PGDetails() {
       {/* Review Modal */}
       <Modal
         isOpen={reviewOpen}
-        onClose={() => setReviewOpen(false)}
+        onClose={() => !submittingReview && setReviewOpen(false)}
         title="Write a Review"
         onConfirm={handleReview}
-        confirmText="Submit Review"
+        confirmText={submittingReview ? "Submitting..." : "Submit Review"}
         confirmVariant="primary"
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Rating
-            </label>
-            <StarRating
-              rating={reviewRating}
-              interactive
-              size="lg"
-              onChange={setReviewRating}
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold text-slate-800">
+                Your Rating
+              </label>
+              <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                {{ 5: '5 ★ Excellent', 4: '4 ★ Very Good', 3: '3 ★ Good', 2: '2 ★ Fair', 1: '1 ★ Poor' }[reviewRating] || `${reviewRating} Stars`}
+              </span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center">
+              <StarRating
+                rating={reviewRating}
+                interactive
+                size="lg"
+                onChange={setReviewRating}
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Comment
+            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+              Your Review & Experience
             </label>
             <textarea
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
               rows={4}
-              placeholder="Share your experience..."
+              placeholder="Tell other students about the room quality, cleanliness, WiFi, food, host behaviour, and overall stay..."
               className="input-field resize-none text-sm"
+              maxLength={500}
             />
+            <div className="flex justify-between items-center text-xs text-slate-400 mt-1">
+              <span>Helpful reviews get highlighted for other students</span>
+              <span>{reviewComment.length}/500</span>
+            </div>
           </div>
         </div>
       </Modal>

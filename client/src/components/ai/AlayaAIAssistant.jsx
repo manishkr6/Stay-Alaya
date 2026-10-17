@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Minimize2,
   Maximize2,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
@@ -119,15 +120,15 @@ export default function AlayaAIAssistant() {
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 group flex items-center gap-2 bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-primary-500/30 hover:scale-105 active:scale-95 transition-all duration-300 ring-4 ring-white/60 dark:ring-slate-900/40"
+          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 group flex items-center gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-2 ring-amber-400/50"
           aria-label="Open Alaya AI Assistant"
         >
           <div className="relative">
-            <Sparkles size={18} className="animate-spin-slow text-amber-300" />
+            <Sparkles size={18} className="animate-spin-slow text-[#f5a623]" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full" />
           </div>
-          <span className="font-semibold text-xs sm:text-sm tracking-wide">Ask Alaya AI</span>
+          <span className="font-semibold text-xs sm:text-sm tracking-wide text-white">Ask Alaya AI</span>
         </button>
       )}
 
@@ -141,15 +142,15 @@ export default function AlayaAIAssistant() {
           }`}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 flex items-center justify-between shadow-md">
+          <div className="bg-[#0f2547] text-white p-4 flex items-center justify-between shadow-md border-b border-amber-400/20">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 to-primary-500 flex items-center justify-center text-slate-950 shadow-inner">
-                <Sparkles size={18} className="fill-slate-950" />
+              <div className="w-9 h-9 rounded-2xl bg-[#0b192c] border border-amber-400/40 flex items-center justify-center text-[#f5a623] shadow-inner">
+                <Sparkles size={18} className="text-[#f5a623]" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm leading-none">Alaya AI</h3>
-                  <span className="text-[10px] bg-primary-500/30 text-primary-200 px-2 py-0.5 rounded-full font-semibold border border-primary-400/20">
+                  <h3 className="font-bold text-sm leading-none text-white">Alaya AI</h3>
+                  <span className="text-[10px] bg-amber-400/20 text-[#f5a623] px-2 py-0.5 rounded-full font-semibold border border-amber-400/30">
                     Gemini 3.8
                   </span>
                 </div>
@@ -198,7 +199,7 @@ export default function AlayaAIAssistant() {
                       className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                     >
                       {!isUser && (
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm text-xs">
+                        <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/40 text-[#f5a623] flex items-center justify-center shrink-0 mt-0.5 shadow-sm text-xs">
                           <Bot size={14} />
                         </div>
                       )}
@@ -207,7 +208,7 @@ export default function AlayaAIAssistant() {
                         <div
                           className={`p-3.5 rounded-2xl text-xs sm:text-[13px] leading-relaxed shadow-sm ${
                             isUser
-                              ? 'bg-primary-600 text-white rounded-tr-sm'
+                              ? 'bg-[#0f2547] text-white rounded-tr-sm'
                               : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-sm'
                           }`}
                         >
@@ -218,7 +219,7 @@ export default function AlayaAIAssistant() {
                         {recommendedPgs.length > 0 && (
                           <div className="space-y-2 pt-1 w-full">
                             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                              <Sparkles size={11} className="text-amber-500" /> Matching PGs Found:
+                              <Sparkles size={11} className="text-[#f5a623]" /> Matching PGs Found:
                             </p>
                             {recommendedPgs.map((pg) => (
                               <div
@@ -246,18 +247,18 @@ export default function AlayaAIAssistant() {
                                     )}
                                   </div>
                                   <p className="text-[11px] text-slate-500 flex items-center gap-0.5 truncate">
-                                    <MapPin size={10} className="text-primary-600 shrink-0" />
+                                    <MapPin size={10} className="text-[#0f2547] shrink-0" />
                                     {pg.location?.area || 'Sikkim'}, {pg.location?.city || ''}
                                   </p>
                                   <div className="flex items-center justify-between mt-1">
-                                    <span className="font-bold text-xs text-primary-600">
+                                    <span className="font-bold text-xs text-[#0f2547]">
                                       ₹{pg.price.toLocaleString('en-IN')}
                                       <span className="text-[10px] font-normal text-slate-400">/mo</span>
                                     </span>
                                     <Link
                                       to={`/pg/${pg.id}`}
                                       onClick={() => setIsOpen(false)}
-                                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded-lg"
+                                      className="text-[11px] font-semibold text-[#0f2547] hover:text-[#f5a623] flex items-center gap-0.5 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/60"
                                     >
                                       View <ExternalLink size={10} />
                                     </Link>
@@ -280,7 +281,7 @@ export default function AlayaAIAssistant() {
 
                 {loading && (
                   <div className="flex gap-2.5 items-center text-slate-500 text-xs py-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+                    <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/40 text-[#f5a623] flex items-center justify-center shrink-0 shadow-sm animate-pulse">
                       <Sparkles size={14} />
                     </div>
                     <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2.5 rounded-tl-sm flex items-center gap-2 shadow-sm">

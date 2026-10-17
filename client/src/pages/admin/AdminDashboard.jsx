@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Clock, Users, UserCheck, TrendingUp } from "lucide-react";
+import { Building2, Clock, Users, UserCheck } from "lucide-react";
 import { useData } from "../../hooks/useData";
 import { formatDistanceToNow } from "../../utils/time";
+import PlatformGrowthCard from "../../components/admin/PlatformGrowthCard";
 
 const TYPE_ICONS = {
   ADD_PG: { icon: "🏠", color: "bg-blue-100 text-blue-700" },
@@ -16,7 +17,7 @@ const TYPE_ICONS = {
 };
 
 export default function AdminDashboard() {
-  const { pgs, users, notifications, fetchAdminData } = useData();
+  const { pgs, users, reviews, notifications, fetchAdminData } = useData();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -79,21 +80,21 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         {stats.map((s) => (
           <div
             key={s.label}
-            className={`bg-white rounded-2xl p-6 border ${s.border} shadow-sm`}
+            className={`bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 border ${s.border} shadow-sm`}
           >
             <div
-              className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center mb-4`}
+              className={`w-10 h-10 sm:w-12 sm:h-12 ${s.bg} rounded-xl flex items-center justify-center mb-3 sm:mb-4`}
             >
-              <s.icon size={22} className={s.color} />
+              <s.icon size={20} className={`sm:w-[22px] sm:h-[22px] ${s.color}`} />
             </div>
-            <div className={`text-3xl font-bold font-display ${s.color} mb-1`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-display ${s.color} mb-1`}>
               {s.value}
             </div>
-            <div className="text-slate-500 text-sm">{s.label}</div>
+            <div className="text-slate-500 text-xs sm:text-sm truncate">{s.label}</div>
           </div>
         ))}
       </div>
@@ -188,24 +189,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-primary-600 rounded-2xl p-6 text-white">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp size={18} />
-              <span className="font-semibold text-sm">Platform Growth</span>
-            </div>
-            <p className="text-primary-200 text-xs mb-4">
-              Demand for Gangtok PGs has risen by 30% this winter.
-            </p>
-            <div className="flex items-end gap-1 h-16">
-              {[40, 55, 45, 70, 65, 80, 75, 90].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 bg-white/20 rounded-sm"
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-          </div>
+          <PlatformGrowthCard pgs={pgs} users={users} reviews={reviews} />
         </div>
       </div>
     </div>

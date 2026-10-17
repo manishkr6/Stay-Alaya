@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus, Sparkles } from 'lucide-react';
+import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus, Sparkles, UserCheck, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { uploadMultipleToCloudinary } from '../../utils/cloudinaryUpload';
 import { generatePGDescriptionWithAI } from '../../services/aiService';
+import { supabase } from '../../lib/supabaseClient';
 
 const AMENITIES = ['WiFi', 'Food', 'AC', 'Parking', 'Laundry', 'CCTV', 'Water', 'Gym'];
 const CITIES = ['Gangtok', 'Singtam', 'Namchi', 'Jorethang', 'Gyalshing', 'Mangan', 'Ravangla', 'Pakyong', 'Rangpo'];
@@ -27,14 +28,24 @@ export default function AddPG({ editMode = false, existingPG = null }) {
       title: existingPG.title,
       price: existingPG.price,
       description: existingPG.description,
-      city: existingPG.location.city,
-      area: existingPG.location.area,
-      address: existingPG.location.address,
+      city: existingPG.location?.city || existingPG.city || 'Gangtok',
+      area: existingPG.location?.area || existingPG.area || '',
+      address: existingPG.location?.address || existingPG.address || '',
       roomType: existingPG.roomType,
       genderPreference: existingPG.genderPreference,
-      contactNumber: existingPG.contactNumber,
-    } : {}
+      contactNumber: existingPG.contactNumber || currentUser?.phone || '',
+    } : {
+      contactNumber: currentUser?.phone || '',
+      city: 'Gangtok',
+    }
   });
+
+  // Automatically detect and populate owner's phone number if not yet set
+  useEffect(() => {
+    if (currentUser?.phone && !getValues('contactNumber')) {
+      setValue('contactNumber', currentUser.phone);
+    }
+  }, [currentUser, setValue, getValues]);
 
   const toggleAmenity = (a) => {
     setSelectedAmenities(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
@@ -133,18 +144,24 @@ export default function AddPG({ editMode = false, existingPG = null }) {
   const handleGenerateAiDescription = async () => {
     const values = getValues();
     if (!values.title?.trim() && !values.city) {
-      toast('Add a title or location to help the AI tailor your description', { icon: 'ℹ️' });
+      toast('Please fill Title, Rent, Location, and Amenities first so AI can craft an accurate description', { icon: 'ℹ️' });
     }
     setIsGeneratingAiDesc(true);
     try {
+      const parsedRules = rulesText
+        ? rulesText.split('\n').map((r) => r.trim()).filter(Boolean)
+        : [];
+
       const generated = await generatePGDescriptionWithAI({
         title: values.title || '',
         area: values.area || '',
         city: values.city || 'Sikkim',
+        address: values.address || '',
         roomType: values.roomType || '',
         genderPreference: values.genderPreference || '',
         price: values.price || '',
         amenities: selectedAmenities,
+        rules: parsedRules,
       });
 
       setValue('description', generated, { shouldValidate: true });
@@ -158,6 +175,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
   };
 
   const onSubmit = async (data) => {
+    const phoneToSave = data.contactNumber?.trim() || currentUser?.phone || '';
     const pgData = {
       title: data.title,
       description: data.description,
@@ -168,16 +186,20 @@ export default function AddPG({ editMode = false, existingPG = null }) {
       amenities: selectedAmenities,
       rules: rulesText.split('\n').map(r => r.trim()).filter(Boolean),
       images,
-      contactNumber: data.contactNumber,
+      contactNumber: phoneToSave,
+      ownerName: currentUser?.name || 'Property Owner',
     };
+
+    // If profile phone was missing, sync it to Supabase profile
+    if (currentUser?.id && phoneToSave && !currentUser?.phone) {
+      supabase.from('profiles').update({ phone: phoneToSave }).eq('id', currentUser.id).then(() => {}).catch(() => {});
+    }
 
     try {
       if (editMode && existingPG) {
         await updatePG(existingPG.id, pgData);
-        toast.success('PG updated successfully! Changes are now live.');
       } else {
         await addPG(pgData, currentUser.id);
-        toast.success('PG listed successfully! Your property is now live.');
       }
       navigate('/owner');
     } catch (e) {
@@ -216,23 +238,6 @@ export default function AddPG({ editMode = false, existingPG = null }) {
               <input type="number" {...register('price', { required: 'Price is required', min: { value: 1000, message: 'Minimum ₹1,000' } })}
                 className="input-field" placeholder="5000" />
               {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-slate-700">Description *</label>
-                <button
-                  type="button"
-                  onClick={handleGenerateAiDescription}
-                  disabled={isGeneratingAiDesc}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary-50 to-purple-50 text-primary-700 border border-primary-200 hover:from-primary-100 hover:to-purple-100 transition-all disabled:opacity-60 shadow-xs"
-                >
-                  <Sparkles size={12} className={isGeneratingAiDesc ? "animate-spin text-primary-600" : "text-amber-500"} />
-                  {isGeneratingAiDesc ? "Writing with AI..." : "✨ Generate with AI"}
-                </button>
-              </div>
-              <textarea rows={4} {...register('description', { required: 'Description is required', minLength: { value: 50, message: 'At least 50 characters' } })}
-                className="input-field resize-none" placeholder="Describe your PG in detail — or click 'Generate with AI' to let Gemini craft one!" />
-              {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
             </div>
           </FormSection>
 
@@ -364,15 +369,95 @@ export default function AddPG({ editMode = false, existingPG = null }) {
             </div>
           </FormSection>
 
-          {/* Section 7: Contact */}
-          <FormSection title="Contact Details" step="07" last>
+          {/* Section 7: Host & Contact Details */}
+          <FormSection title="Host & Contact Details" step="07">
+            {/* Auto-detected Host Card */}
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/90 rounded-2xl p-4 flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-base shadow-xs shrink-0">
+                {(currentUser?.name || 'O').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-bold text-slate-900 truncate">
+                    {currentUser?.name || 'Property Owner'}
+                  </p>
+                  <span className="inline-flex items-center gap-1 bg-emerald-100/90 text-emerald-800 text-[10.5px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                    <UserCheck size={11} className="text-emerald-700" /> Auto-Detected Host
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 truncate mt-0.5">
+                  {currentUser?.email || 'Logged in account'} • Listing will be linked with your real owner profile
+                </p>
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number *</label>
-              <input {...register('contactNumber', {
-                required: 'Contact number is required',
-                pattern: { value: /^[+]?[6-9]\d{9}$/, message: 'Enter valid Indian phone number' }
-              })} className="input-field" placeholder="+919876543210" />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Contact Phone Number *
+              </label>
+              <div className="relative">
+                <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="tel"
+                  {...register('contactNumber', {
+                    required: 'Contact number is required',
+                    pattern: { value: /^[+]?[6-9]\d{9}$/, message: 'Enter valid Indian phone number' }
+                  })}
+                  className="input-field pl-10"
+                  placeholder="+919876543210"
+                />
+              </div>
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber.message}</p>}
+              <p className="text-xs text-slate-500 mt-1">
+                Auto-detected from your account. Students and prospective tenants will call and WhatsApp this number.
+              </p>
+            </div>
+          </FormSection>
+
+          {/* Section 8: AI-Powered Description (Placed Last) */}
+          <FormSection title="Property Description" step="08" last>
+            {/* AI Generator Action Banner */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-primary-50 to-purple-50 border border-primary-200/90 rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={18} className="text-primary-600 shrink-0" />
+                    <h4 className="text-sm font-bold text-slate-900">AI Description Generator</h4>
+                    <span className="text-[10px] font-bold bg-[#0f2547] text-white px-2 py-0.5 rounded-full">Gemini AI</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Now that you&apos;ve filled all the information above (Title, Rent, Location, Room Type, Amenities, Rules, and Contact), click <strong>Generate with AI</strong> to synthesize everything into a captivating, professional description.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateAiDescription}
+                  disabled={isGeneratingAiDesc}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-primary-700 hover:from-primary-900 hover:to-primary-800 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-60 shrink-0 cursor-pointer"
+                >
+                  <Sparkles size={15} className={isGeneratingAiDesc ? "animate-spin text-amber-300" : "text-amber-300"} />
+                  {isGeneratingAiDesc ? "Crafting with Gemini..." : "✨ Generate with AI"}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Full Description *
+              </label>
+              <textarea
+                rows={5}
+                {...register('description', {
+                  required: 'Description is required',
+                  minLength: { value: 50, message: 'At least 50 characters' }
+                })}
+                className="input-field resize-y font-normal"
+                placeholder="Click '✨ Generate with AI' above to let Gemini craft an engaging description from your property details, or type your own!"
+              />
+              {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
+              <p className="text-xs text-slate-500 mt-1">
+                Tip: The AI description only generates when you click the button above. You can freely edit or tweak the generated text before listing.
+              </p>
             </div>
           </FormSection>
 

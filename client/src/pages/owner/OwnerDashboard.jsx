@@ -81,7 +81,6 @@ export default function OwnerDashboard() {
       }
 
       setProfileOpen(false);
-      toast.success('Profile and phone number updated');
     } catch (e) {
       toast.error(e?.message || 'Failed to update profile');
     }

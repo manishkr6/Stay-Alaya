@@ -16,10 +16,40 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Toaster
             position="bottom-right"
             toastOptions={{
-              duration: 3500,
-              style: { borderRadius: '12px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif' },
-              success: { style: { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' } },
-              error: { style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' } },
+              duration: 4000,
+              style: {
+                background: '#ffffff',
+                color: '#0f172a',
+                border: '1px solid #e2e8f0',
+                borderRadius: '14px',
+                fontSize: '13px',
+                fontWeight: 500,
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                padding: '12px 16px',
+                fontFamily: 'DM Sans, sans-serif',
+              },
+              success: {
+                style: {
+                  background: '#ffffff',
+                  color: '#0f172a',
+                  border: '1px solid #e2e8f0',
+                },
+                iconTheme: {
+                  primary: '#f5a623',
+                  secondary: '#ffffff',
+                },
+              },
+              error: {
+                style: {
+                  background: '#ffffff',
+                  color: '#991b1b',
+                  border: '1px solid #fecaca',
+                },
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#ffffff',
+                },
+              },
             }}
           />
         </DataProvider>

@@ -230,10 +230,19 @@ export async function parseSearchQueryWithAI(userQuery) {
     try {
       const ai = getAiClient();
       const prompt = `Extract structured PG search filters from this user search query: "${userQuery}".
-Available Sikkim areas: Gangtok, Tadong, Majitar, Deorali, Ranipool, Namchi, Singtam.
-Available room types: Single, Double, Triple.
-Available genders: Boys, Girls, Co-ed.
-Available amenities: WiFi, Food, Laundry, Geyser, Attached Washroom, Power Backup, Security.
+
+Important Sikkim Campus & Landmark Mappings:
+- "SMIT", "Manipal", "Sikkim Manipal", "Majitar Campus" -> Map to location: "Majitar"
+- "SMIMS", "Manipal Medical", "CRH Hospital", "Tadong" -> Map to location: "Tadong"
+- "Sikkim University", "SU", "5th Mile", "6th Mile" -> Map to location: "5th Mile"
+- "Ropeway", "Deorali", "Deorali Taxi Stand" -> Map to location: "Deorali"
+- "MG Marg", "Mall Road", "Central Gangtok", "Gangtok" -> Map to location: "MG Marg" or "Gangtok"
+- "Namchi", "Singtam", "Rangpo", "Ravangla", "Jorethang" -> Map to their respective town.
+
+Allowed location values: "Gangtok", "Tadong", "Majitar", "Deorali", "5th Mile", "MG Marg", "Singtam", "Namchi", "Rangpo", "Jorethang", "Ravangla" or null if no location or landmark is mentioned.
+Available room types: "Single", "Double", "Triple", null
+Available genders: "Boys", "Girls", "Co-ed", null
+Available amenities: "WiFi", "Food", "AC", "Parking", "Laundry", "CCTV", "Water", "Gym"
 
 Respond ONLY with valid JSON in this exact structure:
 {
@@ -264,17 +273,46 @@ Respond ONLY with valid JSON in this exact structure:
   // Fallback regex parser
   const q = userQuery.toLowerCase();
   let maxPrice = null;
-  const priceMatch = q.match(/(?:under|below|max|budget)\s*₹?\s*(\d+)(?:k)?/i) || q.match(/(\d+)k/i);
+  const priceMatch = q.match(/(?:under|below|max|budget)\s*₹?\s*([\d,]+)(?:k)?/i) || q.match(/(\d+)k/i);
   if (priceMatch) {
-    let num = parseInt(priceMatch[1], 10);
-    if (q.includes(`${num}k`)) num *= 1000;
-    maxPrice = num;
+    const cleanStr = priceMatch[1].replace(/,/g, '');
+    let num = parseInt(cleanStr, 10);
+    if (!isNaN(num)) {
+      if (q.includes(`${num}k`)) num *= 1000;
+      maxPrice = num;
+    }
   }
 
   let location = null;
-  ['majitar', 'tadong', 'gangtok', 'deorali', 'namchi', 'ranipool', 'singtam'].forEach((loc) => {
-    if (q.includes(loc)) location = loc.charAt(0).toUpperCase() + loc.slice(1);
-  });
+  const localities = [
+    { key: '5th mile', val: '5th Mile' },
+    { key: '6th mile', val: '5th Mile' },
+    { key: 'sikkim university', val: '5th Mile' },
+    { key: 'su', val: '5th Mile' },
+    { key: 'mg marg', val: 'MG Marg' },
+    { key: 'mall road', val: 'MG Marg' },
+    { key: 'smit', val: 'Majitar' },
+    { key: 'manipal', val: 'Majitar' },
+    { key: 'majitar', val: 'Majitar' },
+    { key: 'smims', val: 'Tadong' },
+    { key: 'crh', val: 'Tadong' },
+    { key: 'tadong', val: 'Tadong' },
+    { key: 'ropeway', val: 'Deorali' },
+    { key: 'deorali', val: 'Deorali' },
+    { key: 'gangtok', val: 'Gangtok' },
+    { key: 'namchi', val: 'Namchi' },
+    { key: 'ranipool', val: 'Ranipool' },
+    { key: 'singtam', val: 'Singtam' },
+    { key: 'rangpo', val: 'Rangpo' },
+    { key: 'jorethang', val: 'Jorethang' },
+    { key: 'ravangla', val: 'Ravangla' },
+  ];
+  for (const item of localities) {
+    if (q.includes(item.key)) {
+      location = item.val;
+      break;
+    }
+  }
 
   let genderPreference = null;
   if (q.includes('girl') || q.includes('female')) genderPreference = 'Girls';
@@ -287,10 +325,14 @@ Respond ONLY with valid JSON in this exact structure:
   else if (q.includes('triple')) roomType = 'Triple';
 
   const amenities = [];
-  if (q.includes('wifi')) amenities.push('WiFi');
-  if (q.includes('food') || q.includes('meal')) amenities.push('Food Included');
-  if (q.includes('geyser') || q.includes('hot water')) amenities.push('Geyser');
+  if (q.includes('wifi') || q.includes('wi-fi')) amenities.push('WiFi');
+  if (q.includes('food') || q.includes('meal')) amenities.push('Food');
+  if (q.includes('geyser') || q.includes('hot water')) amenities.push('Water');
   if (q.includes('laundry')) amenities.push('Laundry');
+  if (q.includes('ac') || q.includes('air condition')) amenities.push('AC');
+  if (q.includes('parking')) amenities.push('Parking');
+  if (q.includes('gym')) amenities.push('Gym');
+  if (q.includes('cctv')) amenities.push('CCTV');
 
   return {
     location,
@@ -309,10 +351,12 @@ export async function generatePGDescriptionWithAI({
   title,
   area,
   city,
+  address,
   roomType,
   genderPreference,
   price,
   amenities = [],
+  rules = [],
 }) {
   const apiKey = getGeminiApiKey();
 
@@ -323,11 +367,12 @@ export async function generatePGDescriptionWithAI({
 
 Details:
 - PG Title: ${title || 'Comfortable PG'}
-- Location: ${area || ''}, ${city || 'Sikkim'}
+- Location: ${address ? `${address}, ` : ''}${area || ''}, ${city || 'Sikkim'}
 - Room Type: ${roomType || 'Sharing'}
 - Allowed For: ${genderPreference || 'Students / Working Professionals'}
 - Monthly Rent: ₹${price || ''}
 - Key Amenities: ${amenities.join(', ') || 'Essential facilities'}
+${rules && rules.length > 0 ? `- House Guidelines: ${rules.join(', ')}` : ''}
 
 Guidelines:
 - Highlight local Sikkim connectivity, proximity to colleges/markets, peace and study environment.

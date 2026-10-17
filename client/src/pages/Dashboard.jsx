@@ -99,7 +99,6 @@ export default function Dashboard() {
       }
 
       setIsEditingProfile(false);
-      toast.success("Profile and phone number updated successfully!");
     } catch (err) {
       toast.error(err?.message || "Failed to update profile");
     } finally {

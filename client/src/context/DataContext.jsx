@@ -35,8 +35,15 @@ export function DataProvider({ children }) {
       ...pg,
       id,
       ownerId,
-      ownerName: ownerProfile.full_name || pg.ownerName || 'Property Owner',
-      ownerEmail: ownerProfile.email || pg.ownerEmail || '',
+      ownerName:
+        ownerProfile.full_name ||
+        pg.ownerName ||
+        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.name : null) ||
+        'Property Owner',
+      ownerEmail:
+        ownerProfile.email ||
+        pg.ownerEmail ||
+        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.email : ''),
       price: Number(pg.rent ?? pg.price ?? 0),
       rent: Number(pg.rent ?? pg.price ?? 0),
       deposit: Number(pg.deposit ?? 0),
@@ -50,8 +57,16 @@ export function DataProvider({ children }) {
       amenities: Array.isArray(pg.amenities) ? pg.amenities : [],
       rules: Array.isArray(pg.rules) ? pg.rules : [],
       images: Array.isArray(pg.images) ? pg.images : [],
-      contactNumber: pg.contact_number || pg.contactNumber || '+919876543210',
-      averageRating: Number(pg.average_rating || pg.averageRating || 0),
+      contactNumber:
+        pg.contact_number ||
+        pg.contactNumber ||
+        ownerProfile.phone ||
+        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.phone : null) ||
+        '+919876543210',
+      averageRating:
+        Number(pg.total_reviews || pg.totalReviews || 0) > 0
+          ? Number(pg.average_rating || pg.averageRating || 0)
+          : 0,
       totalReviews: Number(pg.total_reviews || pg.totalReviews || 0),
       status: pg.status || (pg.is_verified ? 'approved' : 'pending'),
       deleteRequestReason: pg.delete_request_reason || pg.deleteRequestReason || '',
@@ -71,6 +86,7 @@ export function DataProvider({ children }) {
     rating: Number(r.rating),
     comment: r.comment,
     createdAt: r.created_at ? r.created_at.split('T')[0] : '',
+    rawCreatedAt: r.created_at || '',
   });
 
   const mapUser = (u) => {
@@ -112,16 +128,32 @@ export function DataProvider({ children }) {
 
       if (pgsErr) throw pgsErr;
 
-      const mappedPgs = (pgsData || []).map(mapPG).filter(Boolean);
-      setPgs(mappedPgs);
-
-      // Fetch reviews
+      // Fetch actual real reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('*, profiles(full_name)')
         .order('created_at', { ascending: false });
 
-      setReviews((reviewsData || []).map(mapReview));
+      const mappedReviews = (reviewsData || []).map(mapReview);
+      setReviews(mappedReviews);
+
+      // Compute totalReviews and averageRating strictly from real reviews in the database
+      const mappedPgs = (pgsData || []).map((pg) => {
+        const basePG = mapPG(pg);
+        if (!basePG) return null;
+        const matchingReviews = mappedReviews.filter((r) => String(r.pgId) === String(basePG.id));
+        const realCount = matchingReviews.length;
+        const realAvg = realCount > 0
+          ? Number((matchingReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / realCount).toFixed(1))
+          : 0;
+        return {
+          ...basePG,
+          totalReviews: realCount,
+          averageRating: realAvg,
+        };
+      }).filter(Boolean);
+
+      setPgs(mappedPgs);
     } catch (err) {
       console.warn('Failed to fetch PGs from Supabase:', err);
     }
@@ -137,11 +169,20 @@ export function DataProvider({ children }) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOwnerPgs((data || []).map(mapPG).filter(Boolean));
+      setOwnerPgs((data || []).map((pg) => {
+        const basePG = mapPG(pg);
+        if (!basePG) return null;
+        const matchingReviews = reviews.filter((r) => String(r.pgId) === String(basePG.id));
+        const realCount = matchingReviews.length;
+        const realAvg = realCount > 0
+          ? Number((matchingReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / realCount).toFixed(1))
+          : 0;
+        return { ...basePG, totalReviews: realCount, averageRating: realAvg };
+      }).filter(Boolean));
     } catch (err) {
       console.warn('Failed to fetch owner PGs from Supabase:', err);
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, reviews]);
 
   const fetchSavedPgs = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -237,13 +278,15 @@ export function DataProvider({ children }) {
   const fetchAdminData = useCallback(async () => {
     if (currentUser?.role !== 'admin') return;
     try {
-      const [pgsRes, usersRes] = await Promise.all([
+      const [pgsRes, usersRes, reviewsRes] = await Promise.all([
         supabase.from('pg_listings').select('*, profiles(*)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('reviews').select('*, profiles(full_name)').order('created_at', { ascending: false }),
       ]);
 
       if (pgsRes.data) setPgs(pgsRes.data.map(mapPG));
       if (usersRes.data) setUsers(usersRes.data.map(mapUser));
+      if (reviewsRes.data) setReviews(reviewsRes.data.map(mapReview));
     } catch (err) {
       console.warn('Failed to fetch admin data from Supabase:', err);
     }
@@ -386,8 +429,8 @@ export function DataProvider({ children }) {
   );
 
   const getPGById = useCallback(
-    (id) => pgs.find((pg) => String(pg.id) === String(id)),
-    [pgs]
+    (id) => pgs.find((pg) => String(pg.id) === String(id)) || ownerPgs.find((pg) => String(pg.id) === String(id)),
+    [pgs, ownerPgs]
   );
 
   const getOwnerPGs = useCallback(
@@ -672,16 +715,36 @@ export function DataProvider({ children }) {
 
       if (error) throw error;
 
-      // Re-fetch reviews
+      // Re-fetch reviews for this PG
       const { data: updatedReviews } = await supabase
         .from('reviews')
         .select('*, profiles(full_name)')
         .eq('pg_id', pgId);
 
+      const mappedReviews = (updatedReviews || []).map(mapReview);
       setReviews((prev) => [
         ...prev.filter((r) => String(r.pgId) !== String(pgId)),
-        ...(updatedReviews || []).map(mapReview),
+        ...mappedReviews,
       ]);
+
+      const sum = mappedReviews.reduce((acc, r) => acc + Number(r.rating), 0);
+      const count = mappedReviews.length;
+      const avg = count > 0 ? Number((sum / count).toFixed(1)) : 0;
+
+      setPgs((prev) =>
+        prev.map((p) =>
+          String(p.id) === String(pgId)
+            ? { ...p, averageRating: avg, totalReviews: count }
+            : p
+        )
+      );
+
+      // Update Supabase pg_listings metrics
+      await supabase
+        .from('pg_listings')
+        .update({ average_rating: avg, total_reviews: count })
+        .eq('id', pgId)
+        .catch(() => {});
 
       const targetPg = pgs.find((p) => String(p.id) === String(pgId));
       if (targetPg?.ownerId && String(targetPg.ownerId) !== String(uid)) {
