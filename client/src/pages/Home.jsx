@@ -26,6 +26,7 @@ import PGCard from '../components/ui/PGCard';
 
 const SIKKIM_LOCALITIES = [
   { id: '', label: 'All Sikkim (Gangtok, Namchi...)' },
+  { id: 'Gangtok', label: 'Gangtok (ICFAI University)' },
   { id: 'Tadong', label: 'Tadong (SMIMS & Gangtok)' },
   { id: 'Majitar', label: 'Majitar (SMIT Campus)' },
   { id: '5th Mile', label: '5th Mile (Sikkim University)' },
@@ -43,15 +44,17 @@ const RESIDENCE_TYPES = [
 ];
 
 const PROMPT_SUGGESTIONS = [
+  'Rooms & PG near ICFAI University with food & wifi under 7000',
   'Single room near SMIT Majitar with food & wifi under 7000',
   'Girls PG near Sikkim University 5th Mile with winter geyser',
   'Co-ed room in Tadong within 2 mins of taxi stand',
 ];
 
 const AI_INSTANT_PROMPTS = [
+  { icon: '🎓', text: 'PG near ICFAI University under ₹7,000' },
   { icon: '✨', text: 'Sunny room in Tadong under ₹7,000' },
   { icon: '🌸', text: 'Girls PG in 5th Mile under ₹5,000' },
-  { icon: '🎓', text: 'Boys PG near SMIT Majitar under ₹8,000' },
+  { icon: '🏫', text: 'Boys PG near SMIT Majitar under ₹8,000' },
   { icon: '🏔️', text: 'Mountain view Homestay near MG Marg' },
 ];
 
@@ -373,7 +376,7 @@ export default function Home() {
                         type="text"
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder="Try: 'Sunny room in Tadong under ₹6,000 with Wi-Fi and Geyser'..."
+                        placeholder="Try: 'Rooms near ICFAI University under ₹6,000 with Wi-Fi and Geyser'..."
                         className="w-full bg-transparent text-slate-800 text-xs sm:text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal outline-none border-0 ring-0 focus:ring-0"
                       />
                     </div>
@@ -756,7 +759,7 @@ export default function Home() {
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
               Finding a safe, sunlit room with reliable hot water and Wi-Fi in hilly terrain shouldn't require
               walking up hundreds of stairs or paying hefty broker commissions.{' '}
-              <strong className="text-slate-900">Stay Aalaya</strong> connects students at SRM, SMIT, Manipal,
+              <strong className="text-slate-900">Stay Aalaya</strong> connects students at ICFAI University, SRM, SMIT, Manipal,
               and working professionals directly with verified Sikkimese homeowners.
             </p>
 
@@ -1058,7 +1061,7 @@ export default function Home() {
                     <CheckCircle2 size={15} className="text-[#f5a623] shrink-0 mt-0.5" />
                     <div>
                       <strong className="block text-slate-900">Student & Intern ID Matching</strong>
-                      <span>Verified with college email domains (SRM, SMU, Sikkim University) or student ID cards.</span>
+                      <span>Verified with college email domains (ICFAI University, SRM, SMU, Sikkim University) or student ID cards.</span>
                     </div>
                   </div>
                   <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 flex items-start gap-2">
@@ -1115,23 +1118,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* ========================================================
-          7. FLOATING ASK AALAYA AI WIDGET (Screenshots 1-5 Bottom Right)
-          ======================================================== */}
-      <aside aria-label="Aalaya AI Assistant Trigger" className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => {
-            const aiBtn = document.querySelector('[aria-label="Open AI Assistant"]');
-            if (aiBtn) aiBtn.click();
-            else navigate('/find-pg');
-          }}
-          className="bg-[#0f2547] hover:bg-[#16335d] text-[#f5a623] border border-amber-500/40 font-extrabold text-xs px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-all cursor-pointer"
-        >
-          <Sparkles size={14} className="text-[#f5a623]" />
-          <span className="text-white">Ask Aalaya AI</span>
-        </button>
-      </aside>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
 import Modal from '../../components/ui/Modal';
+import { extractDocUrl } from '../../utils/avatarHelper';
 
 export default function AdminUsers() {
   const { users, approveOwner, rejectOwner, blockUser, changeUserRole } = useData();
@@ -111,6 +112,15 @@ export default function AdminUsers() {
     }
   };
 
+  const handleOpenDoc = (rawUrl, label = 'Document') => {
+    const url = extractDocUrl(rawUrl);
+    if (!url || !url.startsWith('http')) {
+      toast.error(`No valid ${label} URL available.`);
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const formatTimestamp = (dateString) => {
     if (!dateString) return 'Never';
     try {
@@ -193,8 +203,25 @@ export default function AdminUsers() {
               {/* User Identity & Status Header */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm shrink-0">
-                    {user.name?.charAt(0) || 'U'}
+                  {user.avatar || user.avatar_url ? (
+                    <img
+                      src={user.avatar || user.avatar_url}
+                      alt={user.name}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.nextElementSibling) {
+                          e.currentTarget.nextElementSibling.classList.remove('hidden');
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm shrink-0 ${
+                      user.avatar || user.avatar_url ? 'hidden' : ''
+                    }`}
+                  >
+                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -302,33 +329,37 @@ export default function AdminUsers() {
                     </span>
                   </div>
 
-                  {user.ownerRequestDetails && (
-                    <div className="flex items-center gap-3 text-xs flex-wrap">
-                      {user.ownerRequestDetails.propertyDocumentUrl && (
-                        <a
-                          href={user.ownerRequestDetails.propertyDocumentUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary-600 font-medium hover:underline inline-flex items-center gap-1 text-[11px]"
-                        >
-                          <FileText size={12} /> Property Doc <ExternalLink size={10} />
-                        </a>
-                      )}
-                      {user.ownerRequestDetails.identityDocumentUrl && (
-                        <a
-                          href={user.ownerRequestDetails.identityDocumentUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary-600 font-medium hover:underline inline-flex items-center gap-1 text-[11px]"
-                        >
-                          <FileText size={12} /> ID Doc <ExternalLink size={10} />
-                        </a>
-                      )}
-                      {!user.ownerRequestDetails.propertyDocumentUrl && !user.ownerRequestDetails.identityDocumentUrl && (
-                        <span className="text-[11px] text-amber-700">No documents attached</span>
-                      )}
-                    </div>
-                  )}
+                  {(() => {
+                    const propDoc = extractDocUrl(user.propertyDocumentUrl || user.ownerRequestDetails?.propertyDocumentUrl);
+                    const idDoc = extractDocUrl(user.identityDocumentUrl || user.ownerRequestDetails?.identityDocumentUrl);
+                    if (!user.ownerRequestDetails && !propDoc && !idDoc && user.ownerRequestStatus !== 'pending') return null;
+
+                    return (
+                      <div className="flex items-center gap-3 text-xs flex-wrap">
+                        {propDoc ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDoc(propDoc, 'Property Document')}
+                            className="text-primary-600 font-medium hover:underline inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                          >
+                            <FileText size={12} /> Property Doc <ExternalLink size={10} />
+                          </button>
+                        ) : null}
+                        {idDoc ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDoc(idDoc, 'ID Document')}
+                            className="text-primary-600 font-medium hover:underline inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                          >
+                            <FileText size={12} /> ID Doc <ExternalLink size={10} />
+                          </button>
+                        ) : null}
+                        {!propDoc && !idDoc && user.ownerRequestStatus === 'pending' && (
+                          <span className="text-[11px] text-amber-700">No documents attached</span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {user.ownerRequestStatus === 'pending' && (
                     <div className="flex items-center gap-2 pt-1">
@@ -397,8 +428,25 @@ export default function AdminUsers() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm shrink-0">
-                          {user.name?.charAt(0) || 'U'}
+                        {user.avatar || user.avatar_url ? (
+                          <img
+                            src={user.avatar || user.avatar_url}
+                            alt={user.name}
+                            className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (e.currentTarget.nextElementSibling) {
+                                e.currentTarget.nextElementSibling.classList.remove('hidden');
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm shrink-0 ${
+                            user.avatar || user.avatar_url ? 'hidden' : ''
+                          }`}
+                        >
+                          {user.name?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -488,40 +536,46 @@ export default function AdminUsers() {
                       >
                         {user.ownerRequestStatus === 'rejected' ? 'Rejected' : (user.ownerRequestStatus || 'None')}
                       </span>
-                      {user.ownerRequestDetails && (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-[11px] text-slate-500">
-                            Phone: {user.ownerRequestDetails.phoneNumber || 'N/A'}
-                          </p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {user.ownerRequestDetails.propertyDocumentUrl && (
-                              <a
-                                href={user.ownerRequestDetails.propertyDocumentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-primary-600 hover:underline inline-flex items-center gap-0.5"
-                              >
-                                Property Doc <ExternalLink size={10} />
-                              </a>
+                      {(() => {
+                        const propDoc = extractDocUrl(user.propertyDocumentUrl || user.ownerRequestDetails?.propertyDocumentUrl);
+                        const idDoc = extractDocUrl(user.identityDocumentUrl || user.ownerRequestDetails?.identityDocumentUrl);
+                        if (!user.ownerRequestDetails && !propDoc && !idDoc && user.ownerRequestStatus !== 'pending') return null;
+
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {user.ownerRequestDetails?.phoneNumber && (
+                              <p className="text-[11px] text-slate-500">
+                                Phone: {user.ownerRequestDetails.phoneNumber}
+                              </p>
                             )}
-                            {user.ownerRequestDetails.identityDocumentUrl && (
-                              <a
-                                href={user.ownerRequestDetails.identityDocumentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-primary-600 hover:underline inline-flex items-center gap-0.5"
-                              >
-                                ID Doc <ExternalLink size={10} />
-                              </a>
-                            )}
-                            {!user.ownerRequestDetails.propertyDocumentUrl && !user.ownerRequestDetails.identityDocumentUrl && (
-                              <span className="text-[11px] text-amber-600 font-medium">
-                                No docs (Will list as Unverified)
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {propDoc ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDoc(propDoc, 'Property Document')}
+                                  className="text-[11px] text-primary-600 hover:underline inline-flex items-center gap-0.5 cursor-pointer font-medium"
+                                >
+                                  Property Doc <ExternalLink size={10} />
+                                </button>
+                              ) : null}
+                              {idDoc ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDoc(idDoc, 'ID Document')}
+                                  className="text-[11px] text-primary-600 hover:underline inline-flex items-center gap-0.5 cursor-pointer font-medium"
+                                >
+                                  ID Doc <ExternalLink size={10} />
+                                </button>
+                              ) : null}
+                              {!propDoc && !idDoc && (
+                                <span className="text-[11px] text-amber-600 font-medium">
+                                  No docs (Will list as Unverified)
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </td>
 
                     {/* Actions */}

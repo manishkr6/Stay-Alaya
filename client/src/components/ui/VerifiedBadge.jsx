@@ -1,6 +1,6 @@
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 
-export default function VerifiedBadge({ isVerified = true, size = 'md' }) {
+export default function VerifiedBadge({ isVerified = false, size = 'md' }) {
   if (isVerified) {
     if (size === 'sm') {
       return (

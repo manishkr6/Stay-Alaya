@@ -4,6 +4,8 @@ import { ArrowRight, CheckCircle2, FileText, ShieldCheck, ShieldAlert, Upload, S
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { useData } from '../hooks/useData';
+import { uploadFileToCloudinary } from '../utils/cloudinaryUpload';
+import { supabase } from '../lib/supabaseClient';
 
 export default function ListYourPG() {
   const navigate = useNavigate();
@@ -54,18 +56,66 @@ export default function ListYourPG() {
 
     setIsSubmitting(true);
     try {
+      // Extract logged-in user's name from form input, Supabase auth session, or user metadata
+      let userName =
+        fullName?.trim() ||
+        currentUser?.user_metadata?.full_name ||
+        currentUser?.user_metadata?.name ||
+        currentUser?.name ||
+        currentUser?.full_name ||
+        (currentUser?.email ? currentUser.email.split('@')[0] : '');
+
+      if (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'owner') {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const authUser = sessionData?.session?.user;
+          if (authUser) {
+            userName =
+              authUser.user_metadata?.full_name ||
+              authUser.user_metadata?.name ||
+              authUser.email?.split('@')[0] ||
+              userName;
+          }
+        } catch (e) {
+          console.warn('Could not fetch Supabase session for document upload name:', e);
+        }
+      }
+
+      if (!userName) userName = 'owner';
+
+      let propUrl = '';
+      let idUrl = '';
+
+      // Upload owner documents calling uploadFileToCloudinary(docFile, 'document', userName)
+      if (propertyDocument) {
+        toast.loading('Uploading property document...', { id: 'doc-upload' });
+        propUrl = await uploadFileToCloudinary(propertyDocument, 'document', userName);
+      }
+      if (identityDocument) {
+        toast.loading('Uploading identity document...', { id: 'doc-upload' });
+        idUrl = await uploadFileToCloudinary(identityDocument, 'document', userName);
+      }
+      toast.dismiss('doc-upload');
+
+      const userAvatar = currentUser?.avatar_url || currentUser?.avatar || '';
+      const safePropUrl = propUrl && propUrl !== userAvatar && !propUrl.includes('/user_profiles/') ? propUrl : '';
+      const safeIdUrl = idUrl && idUrl !== userAvatar && !idUrl.includes('/user_profiles/') ? idUrl : '';
+
       await requestOwner({
         fullName: fullName.trim(),
         phoneNumber: cleanPhone,
-        propertyDocument,
-        identityDocument,
+        propertyDocument: safePropUrl || null,
+        identityDocument: safeIdUrl || null,
       });
 
       await updateCurrentUser({
-        ...currentUser,
         name: fullName.trim(),
+        full_name: fullName.trim(),
         phone: cleanPhone,
+        kyc_status: 'pending',
         ownerRequestStatus: 'pending',
+        ...(safePropUrl ? { kyc_doc_url: safePropUrl } : {}),
+        ...(safeIdUrl ? { kyc_id_doc_url: safeIdUrl } : {}),
       });
 
       const hasUploadedAny = Boolean(propertyDocument || identityDocument);
@@ -82,26 +132,26 @@ export default function ListYourPG() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <section className="bg-gradient-to-r from-indigo-950 via-blue-950 to-indigo-900 rounded-[2.2rem] px-6 sm:px-10 py-14 text-center text-white shadow-xl">
-          <h1 className="font-serif text-4xl sm:text-5xl font-bold leading-tight">Own a Property in Sikkim?</h1>
-          <p className="mt-5 text-slate-200 text-lg max-w-2xl mx-auto">
+    <div className="min-h-screen bg-slate-50 pt-20 sm:pt-24 lg:pt-28 pb-12">
+      <div className="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <section className="bg-gradient-to-r from-indigo-950 via-blue-950 to-indigo-900 rounded-2xl sm:rounded-[2.2rem] px-4 sm:px-10 py-8 sm:py-14 text-center text-white shadow-xl">
+          <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight">Own a Property in Sikkim?</h1>
+          <p className="mt-3 sm:mt-5 text-slate-200 text-sm sm:text-lg max-w-2xl mx-auto">
             Submit your details to request owner access and list your PG on our platform.
           </p>
           {ownerStatus === 'approved' && (
             <button
               onClick={() => navigate('/owner')}
-              className="mt-8 bg-white text-slate-900 font-bold px-8 py-4 rounded-full hover:bg-slate-100 transition-all inline-flex items-center gap-2"
+              className="mt-6 sm:mt-8 bg-white text-slate-900 font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-slate-100 transition-all inline-flex items-center gap-2 text-sm sm:text-base"
             >
               Go to Owner Dashboard <ArrowRight size={18} />
             </button>
           )}
         </section>
 
-        <section className="mt-8 bg-white rounded-3xl border border-slate-100 shadow-sm p-6 sm:p-8">
-          <h2 className="font-semibold text-slate-900 text-xl mb-2">Request Owner Access</h2>
-          <p className="text-slate-500 text-sm mb-7">
+        <section className="mt-6 sm:mt-8 bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-8">
+          <h2 className="font-semibold text-slate-900 text-lg sm:text-xl mb-1 sm:mb-2">Request Owner Access</h2>
+          <p className="text-slate-500 text-xs sm:text-sm mb-5 sm:mb-7">
             Enter your contact details below to apply for owner access. Uploading verification documents is optional.
           </p>
 
@@ -191,17 +241,17 @@ export default function ListYourPG() {
               </div>
 
               {/* Informative Notice Box Above Documents */}
-              <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-sky-50/50 to-white p-5 shadow-sm">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/10 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <ShieldCheck size={22} className="text-indigo-600" />
+              <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-sky-50/50 to-white p-3.5 sm:p-5 shadow-sm">
+                <div className="flex items-start gap-3 sm:gap-3.5">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600/10 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldCheck size={20} className="text-indigo-600 sm:w-[22px] sm:h-[22px]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-slate-900 text-base">
+                      <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
                         Property & Identity Documents
                       </h3>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-medium">
+                      <span className="text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-medium">
                         Optional
                       </span>
                     </div>
@@ -209,26 +259,26 @@ export default function ListYourPG() {
                       Uploading documents is <strong>not mandatory</strong> to submit your request. However, uploading documents determines whether your property shows as <strong>Verified</strong> or <strong>Not Verified</strong>:
                     </p>
 
-                    <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      <div className="flex items-start gap-2.5 bg-white/95 border border-emerald-200 p-3 rounded-xl shadow-xs">
+                    <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3 text-xs">
+                      <div className="flex items-start gap-2 sm:gap-2.5 bg-white/95 border border-emerald-200 p-2.5 sm:p-3 rounded-xl shadow-xs">
                         <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
                           <ShieldCheck size={13} className="text-emerald-600" />
                         </div>
                         <div>
-                          <p className="font-semibold text-emerald-900">With Documents Uploaded</p>
-                          <p className="text-slate-600 mt-0.5 leading-snug">
+                          <p className="font-semibold text-emerald-900 text-xs sm:text-sm">With Documents Uploaded</p>
+                          <p className="text-slate-600 mt-0.5 leading-snug text-[11px] sm:text-xs">
                             Once approved, your property will be marked with the green <strong className="text-emerald-700">"Verified"</strong> badge (🛡️ Verified), giving students and tenants higher trust.
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5 bg-white/95 border border-amber-200 p-3 rounded-xl shadow-xs">
+                      <div className="flex items-start gap-2 sm:gap-2.5 bg-white/95 border border-amber-200 p-2.5 sm:p-3 rounded-xl shadow-xs">
                         <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                           <ShieldAlert size={13} className="text-amber-600" />
                         </div>
                         <div>
-                          <p className="font-semibold text-amber-900">Without Documents (Skipped)</p>
-                          <p className="text-slate-600 mt-0.5 leading-snug">
+                          <p className="font-semibold text-amber-900 text-xs sm:text-sm">Without Documents (Skipped)</p>
+                          <p className="text-slate-600 mt-0.5 leading-snug text-[11px] sm:text-xs">
                             You can still list your PG immediately, but it will be displayed as <strong className="text-amber-700">"Not Verified"</strong> until documents are verified.
                           </p>
                         </div>
@@ -239,17 +289,17 @@ export default function ListYourPG() {
               </div>
 
               {/* Document Uploads (Optional) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                <div className="rounded-2xl border border-slate-200 p-3.5 sm:p-4 bg-slate-50/50">
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-slate-700">Property Document</label>
-                    <span className="text-xs text-slate-400 font-normal">Optional</span>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Property Document</label>
+                    <span className="text-[11px] sm:text-xs text-slate-400 font-normal">Optional</span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">Upload property paper / electricity bill / rent agreement (PDF/Image)</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 mb-3">Upload property paper / electricity bill / rent agreement (PDF/Image)</p>
                   
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 cursor-pointer text-sm shadow-xs transition-colors">
-                      <Upload size={14} /> Choose File
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 cursor-pointer text-xs sm:text-sm shadow-xs transition-colors">
+                      <Upload size={14} /> <span>Choose File</span>
                       <input
                         type="file"
                         accept=".pdf,image/*"
@@ -261,28 +311,28 @@ export default function ListYourPG() {
                       <button
                         type="button"
                         onClick={() => setPropertyDocument(null)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title="Remove file"
                       >
                         <X size={15} />
                       </button>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 break-all font-mono">
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-2 break-all font-mono">
                     {propertyDocument ? propertyDocument.name : 'No file selected (optional)'}
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/50">
+                <div className="rounded-2xl border border-slate-200 p-3.5 sm:p-4 bg-slate-50/50">
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-slate-700">Identity Document</label>
-                    <span className="text-xs text-slate-400 font-normal">Optional</span>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Identity Document</label>
+                    <span className="text-[11px] sm:text-xs text-slate-400 font-normal">Optional</span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">Upload Aadhaar card / Voter ID / Passport (PDF/Image)</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 mb-3">Upload Aadhaar card / Voter ID / Passport (PDF/Image)</p>
                   
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 cursor-pointer text-sm shadow-xs transition-colors">
-                      <FileText size={14} /> Choose File
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 cursor-pointer text-xs sm:text-sm shadow-xs transition-colors">
+                      <FileText size={14} /> <span>Choose File</span>
                       <input
                         type="file"
                         accept=".pdf,image/*"
@@ -294,20 +344,20 @@ export default function ListYourPG() {
                       <button
                         type="button"
                         onClick={() => setIdentityDocument(null)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title="Remove file"
                       >
                         <X size={15} />
                       </button>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 break-all font-mono">
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-2 break-all font-mono">
                     {identityDocument ? identityDocument.name : 'No file selected (optional)'}
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-xs sm:text-sm text-blue-700 flex items-start gap-2.5">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-3.5 sm:p-4 text-xs sm:text-sm text-blue-700 flex items-start gap-2.5">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-blue-600" />
                 <span>Documents are stored securely and used solely for owner verification.</span>
               </div>
@@ -315,7 +365,7 @@ export default function ListYourPG() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="btn-primary px-8 py-3.5 disabled:opacity-60 text-base font-semibold shadow-lg shadow-primary-500/20"
+                className="w-full sm:w-auto btn-primary px-8 py-3.5 disabled:opacity-60 text-sm sm:text-base font-semibold shadow-lg shadow-primary-500/20"
               >
                 {isSubmitting ? 'Submitting Request...' : 'Request Owner Access'}
               </button>

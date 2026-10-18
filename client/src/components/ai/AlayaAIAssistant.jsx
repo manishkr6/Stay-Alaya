@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Sparkles,
   X,
@@ -18,6 +18,8 @@ import { useData } from '../../hooks/useData';
 import { chatWithAlayaAI } from '../../services/aiService';
 
 export default function AlayaAIAssistant() {
+  const location = useLocation();
+  const isPGDetail = location.pathname.startsWith('/pg/');
   const { pgs } = useData();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -30,12 +32,13 @@ export default function AlayaAIAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Khamzang! 🙏 I am **Alaya AI**, your Sikkim PG & Roommate Matchmaker. Tell me what you're looking for (e.g. area in Sikkim, budget, room sharing, or nearby college like SMIT / Sikkim University) and I'll find the best verified PGs for you!",
+      text: "Khamzang! 🙏 I am **Alaya AI**, your Sikkim PG & Roommate Matchmaker. Tell me what you're looking for (e.g. area in Sikkim, budget, room sharing, or nearby college like ICFAI University, SMIT, or Sikkim University) and I'll find the best verified PGs for you!",
       recommendedIds: [],
     },
   ]);
 
   const quickPrompts = [
+    'PG near ICFAI University with Food & WiFi',
     'Boys PG near SMIT Majitar under ₹7,000',
     'Girls PG in Tadong with Food & WiFi',
     'Single room in Gangtok for working professional',
@@ -120,7 +123,9 @@ export default function AlayaAIAssistant() {
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 group flex items-center gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-2 ring-amber-400/50"
+          className={`fixed ${
+            isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-6'
+          } right-4 sm:right-6 z-50 group flex items-center gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-2 ring-amber-400/50`}
           aria-label="Open Alaya AI Assistant"
         >
           <div className="relative">
@@ -137,7 +142,7 @@ export default function AlayaAIAssistant() {
         <div
           className={`fixed z-50 transition-all duration-300 ${
             isMinimized
-              ? 'bottom-20 sm:bottom-6 right-4 sm:right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3'
+              ? `${isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-6'} right-4 sm:right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3`
               : 'bottom-2 sm:bottom-6 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-[420px] max-h-[90vh] sm:max-h-[85vh] h-[560px] sm:h-[640px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden backdrop-blur-xl'
           }`}
         >
@@ -333,7 +338,7 @@ export default function AlayaAIAssistant() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSend();
                   }}
-                  placeholder="Ask e.g. 'Girls PG near Tadong with food'..."
+                  placeholder="Ask e.g. 'Rooms near ICFAI University' or 'Girls PG in Tadong'..."
                   className="flex-1 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                 />
                 <button

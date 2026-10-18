@@ -2,6 +2,10 @@ import { createContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
+import {
+  extractAvatar,
+  extractIdDoc,
+} from "../utils/avatarHelper";
 
 export const AuthContext = createContext(null);
 
@@ -66,11 +70,29 @@ export function AuthProvider({ children }) {
           "User",
         role: profile.role || sessionUser.user_metadata?.role || "student",
         phone: profile.phone || sessionUser.user_metadata?.phone || "",
+        avatar:
+          extractAvatar(profile) ||
+          profile.avatar_url ||
+          profile.avatar ||
+          profile.photo_url ||
+          profile.profile_image ||
+          sessionUser.user_metadata?.avatar_url ||
+          sessionUser.user_metadata?.avatar ||
+          "",
+        avatar_url:
+          extractAvatar(profile) ||
+          profile.avatar_url ||
+          profile.avatar ||
+          profile.photo_url ||
+          profile.profile_image ||
+          sessionUser.user_metadata?.avatar_url ||
+          sessionUser.user_metadata?.avatar ||
+          "",
         kyc_status: profile.kyc_status || "unsubmitted",
         kyc_doc_url: profile.kyc_doc_url || "",
-        kyc_id_doc_url: profile.kyc_id_doc_url || "",
+        kyc_id_doc_url: extractIdDoc(profile) || profile.kyc_id_doc_url || "",
         ownerRequestStatus:
-          profile.kyc_status === "verified"
+          profile.role === "owner" || profile.kyc_status === "verified"
             ? "approved"
             : profile.kyc_status === "pending"
             ? "pending"
@@ -161,6 +183,8 @@ export function AuthProvider({ children }) {
                               name: payload.new.full_name || prev.name,
                               phone: payload.new.phone || prev.phone,
                               role: payload.new.role || prev.role,
+                              avatar: payload.new.avatar_url || prev.avatar,
+                              avatar_url: payload.new.avatar_url || prev.avatar_url,
                             }
                           : null
                       );
@@ -313,19 +337,55 @@ export function AuthProvider({ children }) {
   }, [navigate]);
 
   const signup = useCallback(async (name, email, password, role = "student") => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard?verified=true`,
         data: {
-          full_name: name.trim(),
-          name: name.trim(),
+          full_name: cleanName,
+          name: cleanName,
           role,
         },
       },
     });
     if (error) throw error;
+
+    const newUserId = data?.user?.id || null;
+
+    // 1. Broadcast new registration to admin via live notifications table
+    try {
+      const notifMsg = `New user registration: ${cleanName} (${cleanEmail}) registered as ${role}.`;
+      await supabase.from('notifications').insert({
+        user_id: null,
+        target_role: 'admin',
+        message: notifMsg,
+        type: 'USER_SIGNUP',
+        related_id: newUserId,
+        is_read: false,
+      });
+    } catch (e) {
+      console.warn('Notice logging signup notification to Supabase for admin:', e);
+    }
+
+    // 2. Insert persistent welcome notification directly for the new user
+    try {
+      if (newUserId) {
+        await supabase.from('notifications').insert({
+          user_id: newUserId,
+          target_role: role || 'student',
+          message: `Welcome to Stay Alaya, ${cleanName}! Your account has been created successfully. Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
+          type: 'WELCOME',
+          related_id: newUserId,
+          is_read: false,
+        });
+      }
+    } catch (userNotifErr) {
+      console.warn('Notice logging welcome notification to Supabase for user:', userNotifErr);
+    }
+
     return data;
   }, []);
 
@@ -351,10 +411,25 @@ export function AuthProvider({ children }) {
 
       const dbPayload = {};
       if (updates.name !== undefined) dbPayload.full_name = updates.name.trim();
+      if (updates.full_name !== undefined) dbPayload.full_name = updates.full_name.trim();
       if (updates.phone !== undefined) dbPayload.phone = updates.phone.trim();
-      if (updates.kyc_status !== undefined) dbPayload.kyc_status = updates.kyc_status;
-      if (updates.kyc_doc_url !== undefined) dbPayload.kyc_doc_url = updates.kyc_doc_url;
-      if (updates.kyc_id_doc_url !== undefined) dbPayload.kyc_id_doc_url = updates.kyc_id_doc_url;
+      const avatarVal = updates.avatar_url !== undefined ? updates.avatar_url : updates.avatar;
+      if (avatarVal !== undefined) {
+        dbPayload.avatar_url = avatarVal || null;
+      }
+      if (updates.kyc_status !== undefined && updates.kyc_status !== 'unsubmitted') {
+        dbPayload.kyc_status = updates.kyc_status;
+      } else if (updates.ownerRequestStatus === 'pending') {
+        dbPayload.kyc_status = 'pending';
+      } else if (updates.kyc_status !== undefined) {
+        dbPayload.kyc_status = updates.kyc_status;
+      }
+      if (updates.kyc_doc_url !== undefined && updates.kyc_doc_url !== '') {
+        dbPayload.kyc_doc_url = updates.kyc_doc_url;
+      }
+      if (updates.kyc_id_doc_url !== undefined && updates.kyc_id_doc_url !== '') {
+        dbPayload.kyc_id_doc_url = updates.kyc_id_doc_url;
+      }
 
       if (Object.keys(dbPayload).length > 0) {
         const { error } = await supabase
@@ -363,22 +438,38 @@ export function AuthProvider({ children }) {
           .eq("id", currentUser.id);
 
         if (error) {
-          console.error("Error updating profile in Supabase:", error);
+          console.error("Error updating profile in Supabase profiles table:", error);
           throw error;
         }
       }
 
-      // Also update auth user metadata if name or phone changed
-      if (updates.name !== undefined || updates.phone !== undefined) {
-        const meta = {};
-        if (updates.name !== undefined) meta.full_name = updates.name.trim();
-        if (updates.phone !== undefined) meta.phone = updates.phone.trim();
-        supabase.auth.updateUser({ data: meta }).catch(() => {});
+      // Also update auth user metadata if name, phone, or avatar changed
+      const meta = {};
+      if (updates.name !== undefined) meta.full_name = updates.name.trim();
+      if (updates.phone !== undefined) meta.phone = updates.phone.trim();
+      if (avatarVal !== undefined) {
+        meta.avatar_url = avatarVal || null;
+      }
+      if (Object.keys(meta).length > 0) {
+        try {
+          await supabase.auth.updateUser({ data: meta });
+        } catch (authErr) {
+          console.warn("Notice updating auth user metadata:", authErr);
+        }
       }
 
       setCurrentUser((prev) => {
-        const updated = { ...prev, ...updates };
-        localStorage.setItem("sikkimpg_user", JSON.stringify(updated));
+        if (!prev) return null;
+        const avatarVal = updates.avatar_url !== undefined ? updates.avatar_url : updates.avatar;
+        const updated = {
+          ...prev,
+          ...updates,
+          avatar: avatarVal !== undefined ? avatarVal : prev?.avatar,
+          avatar_url: avatarVal !== undefined ? avatarVal : prev?.avatar_url,
+        };
+        try {
+          localStorage.setItem("sikkimpg_user", JSON.stringify(updated));
+        } catch {}
         return updated;
       });
 

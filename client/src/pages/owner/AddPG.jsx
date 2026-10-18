@@ -5,7 +5,7 @@ import { Upload, X, ChevronLeft, AlertTriangle, MapPin, ImagePlus, Sparkles, Use
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
-import { uploadMultipleToCloudinary } from '../../utils/cloudinaryUpload';
+import { uploadFileToCloudinary, uploadMultipleToCloudinary } from '../../utils/cloudinaryUpload';
 import { generatePGDescriptionWithAI } from '../../services/aiService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -67,7 +67,38 @@ export default function AddPG({ editMode = false, existingPG = null }) {
 
     const toastId = toast.loading('Compressing and uploading images...');
     try {
-      const uploadedUrls = await uploadMultipleToCloudinary(selected, 'sikkim_pg_rooms', 0.3);
+      // 1. Extract logged-in user's name from Supabase auth session, metadata, or auth context
+      let userName =
+        currentUser?.user_metadata?.full_name ||
+        currentUser?.user_metadata?.name ||
+        currentUser?.name ||
+        currentUser?.full_name ||
+        (currentUser?.email ? currentUser.email.split('@')[0] : '');
+
+      if (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'owner') {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const authUser = sessionData?.session?.user;
+          if (authUser) {
+            userName =
+              authUser.user_metadata?.full_name ||
+              authUser.user_metadata?.name ||
+              authUser.email?.split('@')[0] ||
+              userName;
+          }
+        } catch (e) {
+          console.warn('Could not fetch Supabase session for room upload name:', e);
+        }
+      }
+
+      if (!userName) userName = 'owner';
+
+      // 2. Upload each room photo directly passing userName as the 3rd argument
+      const uploadedUrls = await Promise.all(
+        selected.map((roomFile) =>
+          uploadFileToCloudinary(roomFile, 'room', userName, { maxSizeMB: 0.3 })
+        )
+      );
       setImages(prev => [...prev, ...uploadedUrls]);
       toast.success('Images uploaded successfully', { id: toastId });
       if (files.length > remaining) {
@@ -186,6 +217,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
       amenities: selectedAmenities,
       rules: rulesText.split('\n').map(r => r.trim()).filter(Boolean),
       images,
+      kyc_doc_url: existingPG?.kycDocUrl || existingPG?.kyc_doc_url || currentUser?.kyc_doc_url || null,
       contactNumber: phoneToSave,
       ownerName: currentUser?.name || 'Property Owner',
     };
@@ -354,7 +386,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
             )}
           </FormSection>
 
-          {/* Section 6: Contact */}
+          {/* Section 6: PG Rules */}
           <FormSection title="PG Rules" step="06">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Rules (optional)</label>
@@ -373,9 +405,17 @@ export default function AddPG({ editMode = false, existingPG = null }) {
           <FormSection title="Host & Contact Details" step="07">
             {/* Auto-detected Host Card */}
             <div className="bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/90 rounded-2xl p-4 flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-base shadow-xs shrink-0">
-                {(currentUser?.name || 'O').charAt(0).toUpperCase()}
-              </div>
+              {currentUser?.avatar_url || currentUser?.avatar ? (
+                <img
+                  src={currentUser.avatar_url || currentUser.avatar}
+                  alt={currentUser?.name || "Host"}
+                  className="w-11 h-11 rounded-full object-cover border border-amber-400/50 shadow-xs shrink-0"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-base shadow-xs shrink-0">
+                  {(currentUser?.name || 'O').charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-bold text-slate-900 truncate">

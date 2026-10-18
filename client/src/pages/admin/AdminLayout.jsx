@@ -20,17 +20,17 @@ export default function AdminLayout() {
     )?.label || "Dashboard";
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 pt-20 sm:pt-24 pb-12 sm:pb-16">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 mb-6">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-3.5 sm:mb-6">
           <Link
             to="/admin"
             className="hover:text-primary-600 transition-colors font-medium"
           >
             Admin
           </Link>
-          <ChevronRight size={14} className="text-slate-400" />
+          <ChevronRight size={13} className="text-slate-400" />
           <span className="text-slate-900 font-semibold">{currentPage}</span>
         </div>
 

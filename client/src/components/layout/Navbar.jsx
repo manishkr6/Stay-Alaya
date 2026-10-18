@@ -129,9 +129,9 @@ export default function Navbar() {
           {/* Logo */}
           <Link
             to={isAdminPage ? "/admin" : "/"}
-            className="flex items-center gap-2 group px-1 py-1 shrink-0"
+            className="flex items-center gap-2 group px-0.5 sm:px-1 py-1 shrink-0"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-amber-400/40 shadow-xs bg-white">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-amber-400/40 shadow-xs bg-white">
               <img
                 src="/logo1.png"
                 alt="Stay Aalaya"
@@ -144,7 +144,7 @@ export default function Navbar() {
             <div className="flex flex-col leading-none">
               <div className="flex items-center gap-1.5">
                 <span
-                  className="font-serif text-xl sm:text-2xl font-black tracking-tight text-[#0f2547]"
+                  className="font-serif text-lg sm:text-2xl font-black tracking-tight text-[#0f2547]"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
                   Stay <span className="text-[#f5a623]">Aalaya</span>
@@ -280,9 +280,17 @@ export default function Navbar() {
                     onClick={() => setProfileOpen(!profileOpen)}
                     className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white hover:bg-slate-50 transition-all border border-slate-200/80 shadow-xs cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/50 flex items-center justify-center text-[#f5a623] text-xs font-black shadow-xs">
-                      {currentUser.name.charAt(0).toUpperCase()}
-                    </div>
+                    {currentUser?.avatar_url || currentUser?.avatar ? (
+                      <img
+                        src={currentUser.avatar_url || currentUser.avatar}
+                        alt={currentUser?.name}
+                        className="w-7 h-7 rounded-full object-cover border border-amber-400/50 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/50 flex items-center justify-center text-[#f5a623] text-xs font-black shadow-xs">
+                        {currentUser?.name?.charAt(0)?.toUpperCase() || "A"}
+                      </div>
+                    )}
                     <span className="text-xs sm:text-sm font-semibold text-slate-800 max-w-[85px] truncate">
                       {currentUser.name.split(" ")[0]}
                     </span>
@@ -357,9 +365,9 @@ export default function Navbar() {
             ) : (
               /* Authenticated on public / normal pages */
               <>
-                {(currentUser.role === "user" || currentUser.role === "student") && (
+                {currentUser && (
                   <Link
-                    to="/dashboard"
+                    to="/saved-pgs"
                     title="Saved PGs"
                     className="relative p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600 hover:text-[#0f2547]"
                   >
@@ -419,9 +427,17 @@ export default function Navbar() {
                     className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white hover:bg-slate-50 transition-all border border-slate-200/80 shadow-xs cursor-pointer"
                   >
                     {/* Brand Theme Avatar */}
-                    <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/50 flex items-center justify-center text-[#f5a623] text-xs font-black shadow-xs">
-                      {currentUser.name.charAt(0).toUpperCase()}
-                    </div>
+                    {currentUser.avatar_url || currentUser.avatar ? (
+                      <img
+                        src={currentUser.avatar_url || currentUser.avatar}
+                        alt={currentUser.name}
+                        className="w-7 h-7 rounded-full object-cover border border-amber-400/50 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-[#0f2547] border border-amber-400/50 flex items-center justify-center text-[#f5a623] text-xs font-black shadow-xs">
+                        {currentUser.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <span className="text-xs sm:text-sm font-semibold text-slate-800 max-w-[85px] truncate">
                       {currentUser.name.split(" ")[0]}
                     </span>
@@ -458,20 +474,22 @@ export default function Navbar() {
                             ? "Admin Panel"
                             : "Dashboard"}
                         </Link>
-                        <Link
-                          to="/saved-pgs"
-                          className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
-                        >
-                          <span className="flex items-center gap-2.5">
-                            <Heart size={15} className="text-[#f5a623]" />
-                            Saved PGs
-                          </span>
-                          {savedCount > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                              {savedCount}
+                        {currentUser.role !== "admin" && (
+                          <Link
+                            to="/saved-pgs"
+                            className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
+                          >
+                            <span className="flex items-center gap-2.5">
+                              <Heart size={15} className="text-[#f5a623]" />
+                              Saved PGs
                             </span>
-                          )}
-                        </Link>
+                            {savedCount > 0 && (
+                              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                                {savedCount}
+                              </span>
+                            )}
+                          </Link>
+                        )}
                       </div>
                       <div className="pt-1">
                         <button
@@ -488,14 +506,50 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors"
-            aria-label="Toggle Navigation Menu"
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          {/* Mobile menu button & quick actions */}
+          <div className="flex items-center gap-1 md:hidden">
+            {currentUser && (
+              <>
+                {currentUser.role !== "admin" && !isAdminPage && (
+                  <Link
+                    to="/saved-pgs"
+                    title="Saved PGs"
+                    className="relative p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors"
+                  >
+                    <Heart size={18} />
+                    {savedCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
+                        {savedCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
+                <Link
+                  to={
+                    currentUser.role === "admin"
+                      ? "/admin/notifications"
+                      : "/notifications"
+                  }
+                  title="Notifications"
+                  className="relative p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors"
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -507,9 +561,17 @@ export default function Navbar() {
             <>
               <div className="px-4 py-3 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#0f2547] text-[#f5a623] border border-amber-400/40 flex items-center justify-center font-bold text-sm">
-                    {currentUser?.name?.charAt(0)?.toUpperCase() || "A"}
-                  </div>
+                  {currentUser?.avatar_url || currentUser?.avatar ? (
+                    <img
+                      src={currentUser?.avatar_url || currentUser?.avatar}
+                      alt={currentUser?.name}
+                      className="w-9 h-9 rounded-full object-cover border border-amber-400/40 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#0f2547] text-[#f5a623] border border-amber-400/40 flex items-center justify-center font-bold text-sm">
+                      {currentUser?.name?.charAt(0)?.toUpperCase() || "A"}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">
                       {currentUser?.name}
@@ -529,7 +591,9 @@ export default function Navbar() {
               </div>
 
               <div className="px-3 py-3 space-y-1">
-                {adminNavItems.map((item) => {
+                {adminNavItems
+                  .filter((item) => item.path !== "/saved-pgs")
+                  .map((item) => {
                   const active = item.exact
                     ? location.pathname === item.path
                     : location.pathname.startsWith(item.path);
@@ -582,9 +646,17 @@ export default function Navbar() {
               {/* User Profile Info if logged in */}
               {isAuthenticated && currentUser && (
                 <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#0f2547] text-[#f5a623] border border-amber-400/40 flex items-center justify-center font-bold text-sm shrink-0">
-                    {currentUser.name?.charAt(0)?.toUpperCase() || "U"}
-                  </div>
+                  {currentUser?.avatar_url || currentUser?.avatar ? (
+                    <img
+                      src={currentUser?.avatar_url || currentUser?.avatar}
+                      alt={currentUser?.name}
+                      className="w-9 h-9 rounded-full object-cover border border-amber-400/40 shadow-xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#0f2547] text-[#f5a623] border border-amber-400/40 flex items-center justify-center font-bold text-sm shrink-0">
+                      {currentUser.name?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900 truncate">
                       {currentUser.name}
@@ -633,10 +705,9 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <>
-                    {(currentUser.role === "user" ||
-                      currentUser.role === "student") && (
+                    {currentUser && currentUser.role !== "admin" && (
                       <Link
-                        to="/dashboard"
+                        to="/saved-pgs"
                         className="relative flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 hover:bg-amber-50 hover:text-[#0f2547] font-medium text-sm"
                       >
                         <Heart size={16} className="text-[#f5a623]" /> Saved PGs

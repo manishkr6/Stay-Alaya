@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Trash2, X, ExternalLink, ArrowRight, AlertTriangle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Check, Trash2, X, ExternalLink, ArrowRight, AlertTriangle, RefreshCw, CheckCircle2, UserCheck, UserX, FileText, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import Modal from '../../components/ui/Modal';
 import { formatDistanceToNow } from '../../utils/time';
+import { extractDocUrl } from '../../utils/avatarHelper';
 
 const TYPES = ['ALL', 'DELETE_PG', 'ADD_PG', 'UPDATE_PG', 'REPORT_PG', 'USER_SIGNUP', 'OWNER_REQUEST', 'REVIEW'];
 const TYPE_META = {
@@ -24,8 +25,11 @@ export default function AdminNotifications() {
     markOneRead,
     getUnreadCount,
     pgs,
+    users,
     approveDeletePG,
     rejectDeletePG,
+    approveOwner,
+    rejectOwner,
     fetchAdminData,
     fetchNotifications,
   } = useData();
@@ -38,6 +42,11 @@ export default function AdminNotifications() {
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(null);
   const [declineDeleteModal, setDeclineDeleteModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
+
+  // Modals for owner requests
+  const [rejectOwnerModal, setRejectOwnerModal] = useState(null);
+  const [rejectOwnerReason, setRejectOwnerReason] = useState('');
+  const [isRejectingOwner, setIsRejectingOwner] = useState(false);
 
   // Always refresh admin data and notifications on mount
   useEffect(() => {
@@ -53,6 +62,46 @@ export default function AdminNotifications() {
     ]);
     setIsRefreshing(false);
     toast.success('Notifications & listings updated');
+  };
+
+  // Safe document opening handler (never navigates into a relative 404 URL)
+  const handleOpenDoc = (rawUrl, label = 'Document') => {
+    const url = extractDocUrl(rawUrl);
+    if (!url || !url.startsWith('http')) {
+      toast.error(`No valid ${label} URL available.`);
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleApproveOwner = async (userId, userName) => {
+    try {
+      await approveOwner(userId);
+      toast.success(`Owner request for "${userName || 'User'}" approved!`);
+      await Promise.all([fetchAdminData?.(), fetchNotifications?.()]);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to approve owner request');
+    }
+  };
+
+  const handleRejectOwner = async () => {
+    if (!rejectOwnerModal?.userId) return;
+    if (!rejectOwnerReason.trim()) {
+      toast.error('Please enter a reason for declining the owner request');
+      return;
+    }
+    setIsRejectingOwner(true);
+    try {
+      await rejectOwner(rejectOwnerModal.userId, rejectOwnerReason.trim());
+      toast.success(`Owner request for "${rejectOwnerModal.userName}" declined.`);
+      setRejectOwnerModal(null);
+      setRejectOwnerReason('');
+      await Promise.all([fetchAdminData?.(), fetchNotifications?.()]);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to decline owner request');
+    } finally {
+      setIsRejectingOwner(false);
+    }
   };
 
   const handleApproveDelete = async () => {
@@ -89,16 +138,16 @@ export default function AdminNotifications() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="text-slate-500 text-sm mt-1">{unread} unread notification{unread !== 1 ? 's' : ''}</p>
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">Notifications</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">{unread} unread notification{unread !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs cursor-pointer"
           >
             <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary-600' : ''} />
             Refresh
@@ -106,7 +155,7 @@ export default function AdminNotifications() {
           {unread > 0 && (
             <button
               onClick={markNotificationsRead}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-xl text-xs font-semibold transition-colors"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
             >
               <Check size={14} /> Mark All Read
             </button>
@@ -114,14 +163,14 @@ export default function AdminNotifications() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none flex-nowrap">
         {TYPES.map(t => {
           const count = t === 'ALL' ? notifications.filter(n => !n.isRead).length : notifications.filter(n => n.type === t && !n.isRead).length;
           return (
             <button
               key={t}
               onClick={() => setActiveType(t)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                 activeType === t ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -148,34 +197,34 @@ export default function AdminNotifications() {
             <div
               key={n.id}
               onClick={() => !n.isRead && markOneRead(n.id)}
-              className={`p-5 rounded-2xl border transition-all ${
+              className={`p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border transition-all ${
                 n.isRead ? 'bg-white border-slate-100' : 'bg-blue-50/50 border-blue-200 shadow-xs'
               }`}
             >
-              <div className="flex items-start gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${meta.color}`}>
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${meta.color}`}>
                   {meta.icon}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${meta.color}`}>{meta.label}</span>
-                    <span className="text-slate-400 text-xs">{formatDistanceToNow(n.createdAt)}</span>
+                    <span className={`text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full font-semibold ${meta.color}`}>{meta.label}</span>
+                    <span className="text-slate-400 text-[11px] sm:text-xs">{formatDistanceToNow(n.createdAt)}</span>
                   </div>
 
-                  <p className="text-sm text-slate-800 leading-relaxed font-medium">{n.message}</p>
+                  <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">{n.message}</p>
 
                   {/* ACTION BAR FOR DELETE_PG REQUESTS */}
                   {n.type === 'DELETE_PG' && (
                     <div className="mt-3">
                       {isPendingDelete ? (
-                        <div className="p-3.5 bg-rose-50/70 border border-rose-200/80 rounded-xl space-y-2.5">
+                        <div className="p-3 sm:p-3.5 bg-rose-50/70 border border-rose-200/80 rounded-xl space-y-2.5">
                           <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
                             <span className="font-semibold text-rose-900 flex items-center gap-1.5">
-                              <AlertTriangle size={13} className="text-rose-600" />
+                              <AlertTriangle size={13} className="text-rose-600 shrink-0" />
                               Action Required: Property Delete Requested
                             </span>
-                            <span className="text-slate-500 font-medium">
+                            <span className="text-slate-600 font-semibold">
                               ₹{targetPg.price?.toLocaleString('en-IN')}/mo · {targetPg.location?.city}
                             </span>
                           </div>
@@ -187,31 +236,33 @@ export default function AdminNotifications() {
                             </p>
                           )}
 
-                          <div className="flex items-center gap-2 pt-1 flex-wrap">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmDeleteModal(targetPg);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                            >
-                              <Trash2 size={12} /> Approve Delete
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeclineDeleteModal(targetPg);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 transition-colors"
-                            >
-                              <X size={12} /> Decline Request
-                            </button>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteModal(targetPg);
+                                }}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={12} /> Approve Delete
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeclineDeleteModal(targetPg);
+                                }}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 transition-colors cursor-pointer"
+                              >
+                                <X size={12} /> Decline Request
+                              </button>
+                            </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate('/admin/pending');
                               }}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg text-xs font-medium transition-colors ml-auto"
+                              className="inline-flex items-center justify-center sm:justify-start gap-1 px-3 py-1.5 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg text-xs font-medium transition-colors sm:ml-auto cursor-pointer"
                             >
                               Open Approvals Page <ArrowRight size={12} />
                             </button>
@@ -246,19 +297,129 @@ export default function AdminNotifications() {
                     </div>
                   )}
 
-                  {n.type === 'OWNER_REQUEST' && (
+                  {n.type === 'USER_SIGNUP' && (
                     <div className="mt-2.5 flex items-center gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate('/admin/users');
                         }}
-                        className="text-xs text-purple-600 hover:text-purple-700 font-semibold inline-flex items-center gap-1 hover:underline"
+                        className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold inline-flex items-center gap-1 hover:underline"
                       >
-                        Manage Users & Owner Requests <ArrowRight size={12} />
+                        View in Users Directory <ArrowRight size={12} />
                       </button>
                     </div>
                   )}
+
+                  {n.type === 'OWNER_REQUEST' && (() => {
+                    const applicant = users.find(
+                      (u) =>
+                        String(u.id) === String(n.relatedId) ||
+                        (n.userId && String(u.id) === String(n.userId)) ||
+                        (n.message && u.email && n.message.includes(u.email)) ||
+                        (n.message && u.name && n.message.includes(u.name))
+                    );
+                    const applicantAvatar = applicant?.avatar_url || applicant?.avatar || '';
+                    const details = applicant?.ownerRequestDetails || {};
+                    const propDoc = extractDocUrl(applicant?.kyc_doc_url || applicant?.propertyDocumentUrl || details.propertyDocumentUrl, applicantAvatar);
+                    const idDoc = extractDocUrl(applicant?.kyc_id_doc_url || applicant?.identityDocumentUrl || details.identityDocumentUrl, applicantAvatar);
+                    const isPending = applicant?.ownerRequestStatus === 'pending' || applicant?.kyc_status === 'pending';
+
+                    return (
+                      <div className="mt-3 p-3 sm:p-3.5 bg-purple-50/70 border border-purple-200/80 rounded-xl space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                          <span className="font-semibold text-purple-950 flex items-center gap-1.5">
+                            <ShieldCheck size={13} className="text-purple-600 shrink-0" />
+                            Owner Verification Application
+                          </span>
+                          {applicant && (
+                            <span className="text-slate-600 font-medium">
+                              {applicant.email} {applicant.phone ? `· ${applicant.phone}` : ''}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Documents */}
+                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                          <span className="text-xs text-slate-600 font-semibold">Verification Docs:</span>
+                          {propDoc ? (
+                            <a
+                              href={propDoc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+                            >
+                              <FileText size={11} /> Property Doc <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No property doc</span>
+                          )}
+
+                          {idDoc ? (
+                            <a
+                              href={idDoc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+                            >
+                              <FileText size={11} /> Identity Doc <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No identity doc</span>
+                          )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-purple-100">
+                          {isPending && applicant ? (
+                            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApproveOwner(applicant.id, applicant.name);
+                                }}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                              >
+                                <UserCheck size={12} /> Approve as Owner
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRejectOwnerModal({ userId: applicant.id, userName: applicant.name });
+                                  setRejectOwnerReason('');
+                                }}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 transition-colors cursor-pointer"
+                              >
+                                <UserX size={12} /> Decline
+                              </button>
+                            </div>
+                          ) : applicant?.role === 'owner' ? (
+                            <span className="text-xs text-slate-600 bg-white px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-slate-200">
+                              <CheckCircle2 size={12} className="text-emerald-500" />
+                              Owner approved & active
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-500 bg-white px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-slate-200">
+                              <CheckCircle2 size={12} className="text-slate-400" />
+                              Application resolved
+                            </span>
+                          )}
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/admin/pending');
+                            }}
+                            className="inline-flex items-center justify-center sm:justify-start gap-1 px-3 py-1 text-purple-700 hover:text-purple-800 hover:underline text-xs font-semibold transition-colors sm:ml-auto cursor-pointer"
+                          >
+                            Approvals Queue <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {!n.isRead && <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-2" />}
@@ -316,6 +477,34 @@ export default function AdminNotifications() {
           onChange={e => setDeclineReason(e.target.value)}
           rows={4}
           placeholder="e.g. Active bookings or tenant inquiries exist for this property..."
+          className="input-field resize-none text-sm"
+        />
+      </Modal>
+
+      {/* Modal: Decline Owner Request */}
+      <Modal
+        isOpen={!!rejectOwnerModal}
+        onClose={() => {
+          setRejectOwnerModal(null);
+          setRejectOwnerReason('');
+        }}
+        title="Decline Owner Request"
+        onConfirm={handleRejectOwner}
+        confirmText={isRejectingOwner ? 'Declining...' : 'Decline Request'}
+        confirmVariant="danger"
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Please provide a reason for declining the owner request for{' '}
+          <span className="font-semibold text-slate-900">
+            "{rejectOwnerModal?.userName}"
+          </span>
+          . The user will be notified of this reason.
+        </p>
+        <textarea
+          value={rejectOwnerReason}
+          onChange={(e) => setRejectOwnerReason(e.target.value)}
+          rows={4}
+          placeholder="e.g. Identity document unclear, property verification failed..."
           className="input-field resize-none text-sm"
         />
       </Modal>

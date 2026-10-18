@@ -28,6 +28,7 @@ import { useData } from "../hooks/useData";
 import { useAuth } from "../hooks/useAuth";
 import VerifiedBadge from "../components/ui/VerifiedBadge";
 import Modal from "../components/ui/Modal";
+import { extractAvatar } from "../utils/avatarHelper";
 import { StarRating } from "../components/ui/index.jsx";
 import { generatePGInsightsWithAI } from "../services/aiService";
 
@@ -123,6 +124,15 @@ export default function PGDetails() {
     pg?.profiles?.full_name ||
     'Property Owner';
   const ownerInitial = (ownerName && ownerName !== 'Property Owner' ? ownerName.charAt(0) : (isOwnPG ? currentUser?.name?.charAt(0) : 'P')).toUpperCase();
+  const ownerAvatar =
+    (isOwnPG && (currentUser?.avatar_url || currentUser?.avatar)) ||
+    pg?.ownerAvatar ||
+    owner?.avatar ||
+    owner?.avatar_url ||
+    extractAvatar(pg?.profiles) ||
+    extractAvatar(owner) ||
+    extractAvatar({ id: pg?.ownerId }) ||
+    '';
   const rawContactPhone =
     pg?.contactNumber ||
     pg?.contact_number ||
@@ -546,8 +556,25 @@ export default function PGDetails() {
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
-                                {r.userName?.charAt(0)}
+                              {r.userAvatar ? (
+                                <img
+                                  src={r.userAvatar}
+                                  alt={r.userName}
+                                  className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    if (e.currentTarget.nextElementSibling) {
+                                      e.currentTarget.nextElementSibling.classList.remove('hidden');
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className={`w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm shrink-0 ${
+                                  r.userAvatar ? 'hidden' : ''
+                                }`}
+                              >
+                                {r.userName?.charAt(0)?.toUpperCase() || 'U'}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -663,7 +690,24 @@ export default function PGDetails() {
                   Property Owner
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
+                  {ownerAvatar ? (
+                    <img
+                      src={ownerAvatar}
+                      alt={ownerName}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-amber-400/50 shadow-xs shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.nextElementSibling) {
+                          e.currentTarget.nextElementSibling.classList.remove('hidden');
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-12 h-12 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center font-bold text-lg shadow-xs shrink-0 border border-amber-400/30 ${
+                      ownerAvatar ? 'hidden' : ''
+                    }`}
+                  >
                     {ownerInitial}
                   </div>
                   <div className="min-w-0 flex-1">

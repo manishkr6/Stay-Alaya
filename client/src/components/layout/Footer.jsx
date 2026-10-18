@@ -77,6 +77,7 @@ export default function Footer() {
             <ul className="space-y-3 text-xs sm:text-sm">
               {[
                 { label: 'Explore All PGs', to: '/find-pg' },
+                { label: 'Gangtok (ICFAI University)', to: '/find-pg?locality=Gangtok' },
                 { label: 'Tadong (SMIMS Hub)', to: '/find-pg?locality=Tadong' },
                 { label: 'Majitar (SMIT Campus)', to: '/find-pg?locality=Majitar' },
                 { label: '5th Mile (Sikkim University)', to: '/find-pg?locality=5th Mile' },

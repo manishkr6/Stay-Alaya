@@ -29,6 +29,7 @@ const PER_PAGE = 9;
 const normalizeLocation = (loc) => {
   if (!loc) return '';
   const l = loc.toLowerCase().trim();
+  if (l.includes('icfai')) return 'Gangtok';
   if (l.includes('manipal') || l.includes('smit')) return 'Majitar';
   if (l.includes('smims') || l.includes('crh')) return 'Tadong';
   if (l.includes('sikkim university') || l.includes('su') || l.includes('5th mile') || l.includes('6th mile')) return '5th Mile';
@@ -123,6 +124,7 @@ export default function FindPG() {
 
     if (filters.location) {
       const loc = filters.location.toLowerCase();
+      const isIcfai = loc.includes('icfai');
       const isManipal = loc.includes('manipal') || loc.includes('majitar') || loc.includes('smit');
       result = result.filter(pg => {
         const city = (pg.location?.city || pg.city || '').toLowerCase();
@@ -130,6 +132,20 @@ export default function FindPG() {
         const title = (pg.title || '').toLowerCase();
         const addr = (pg.location?.address || pg.address || '').toLowerCase();
         const desc = (pg.description || '').toLowerCase();
+
+        if (isIcfai) {
+          if (
+            city.includes('gangtok') ||
+            area.includes('gangtok') ||
+            area.includes('sichey') ||
+            area.includes('ranka') ||
+            title.includes('icfai') ||
+            addr.includes('icfai') ||
+            desc.includes('icfai')
+          ) {
+            return true;
+          }
+        }
 
         if (isManipal) {
           if (
@@ -230,7 +246,7 @@ export default function FindPG() {
       return;
     }
 
-    const isNaturalQuery = /(?:under|below|budget|with|wifi|wi-fi|food|geyser|water|boys|girls|single|double|triple|near|smit)/i.test(query);
+    const isNaturalQuery = /(?:under|below|budget|with|wifi|wi-fi|food|geyser|water|boys|girls|single|double|triple|near|icfai|smit)/i.test(query);
     if (isNaturalQuery) {
       handleAiSearch(query);
       return;
@@ -360,7 +376,7 @@ export default function FindPG() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search area (e.g. Majitar), or ask AI: 'Boys PG under 6000 with WiFi'..."
+                    placeholder="Search area (e.g. Near ICFAI University), or ask AI: 'Boys PG under 6000 with WiFi'..."
                     style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                     className="w-full bg-transparent text-sm sm:text-base border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 text-slate-800 placeholder:text-slate-400 font-normal shadow-none ring-0"
                   />
@@ -442,9 +458,15 @@ export default function FindPG() {
             </span>
             {[
               {
+                text: 'Rooms & PG near ICFAI University',
+                label: 'Near ICFAI University',
+                icon: '🎓',
+                bg: 'bg-blue-100 hover:bg-blue-200/90 text-blue-900',
+              },
+              {
                 text: 'Boys PG in Majitar under 8000',
                 label: 'Boys PG in Majitar under ₹8k',
-                icon: '🎓',
+                icon: '🏫',
                 bg: 'bg-indigo-100 hover:bg-indigo-200/90 text-indigo-900',
               },
               {

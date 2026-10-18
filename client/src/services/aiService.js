@@ -90,7 +90,7 @@ export async function chatWithAlayaAI(userMessage, conversationHistory = [], ava
     try {
       const ai = getAiClient();
       const systemInstruction = `You are "Alaya AI", the friendly, knowledgeable, expert PG discovery assistant for "Stay Alaya" in Sikkim, India.
-Your mission is to help college students (e.g. SMIT Majitar, Sikkim University, SRM Sikkim, SMIMS Tadong) and working professionals find their ideal paying guest accommodations in Sikkim (Gangtok, Tadong, Majitar, Deorali, Namchi, Singtam, etc.).
+Your mission is to help college students (e.g. ICFAI University, SMIT Majitar, Sikkim University, SRM Sikkim, SMIMS Tadong) and working professionals find their ideal paying guest accommodations in Sikkim (Gangtok, Tadong, Majitar, Deorali, Namchi, Singtam, etc.).
 
 Here are the real, available PG listings currently on Stay Alaya:
 ${JSON.stringify(pgsContext, null, 2)}
@@ -174,8 +174,14 @@ function smartLocalPgMatcher(query, availablePgs = []) {
     const pgText = `${pg.title} ${pg.location?.area || ''} ${pg.location?.city || ''} ${pg.description || ''}`.toLowerCase();
 
     // Location matching
-    ['majitar', 'tadong', 'gangtok', 'deorali', 'namchi', 'smit', 'ranipool', 'singtam'].forEach((loc) => {
-      if (q.includes(loc) && pgText.includes(loc)) score += 5;
+    ['icfai', 'majitar', 'tadong', 'gangtok', 'deorali', 'namchi', 'smit', 'ranipool', 'singtam'].forEach((loc) => {
+      if (q.includes(loc)) {
+        if (loc === 'icfai') {
+          if (pgText.includes('icfai') || pgText.includes('gangtok') || pgText.includes('sichey') || pgText.includes('ranka')) score += 5;
+        } else if (pgText.includes(loc)) {
+          score += 5;
+        }
+      }
     });
 
     // Gender
@@ -232,6 +238,7 @@ export async function parseSearchQueryWithAI(userQuery) {
       const prompt = `Extract structured PG search filters from this user search query: "${userQuery}".
 
 Important Sikkim Campus & Landmark Mappings:
+- "ICFAI University", "ICFAI", "ICFAI Sikkim", "Ranka Road" -> Map to location: "Gangtok"
 - "SMIT", "Manipal", "Sikkim Manipal", "Majitar Campus" -> Map to location: "Majitar"
 - "SMIMS", "Manipal Medical", "CRH Hospital", "Tadong" -> Map to location: "Tadong"
 - "Sikkim University", "SU", "5th Mile", "6th Mile" -> Map to location: "5th Mile"
@@ -285,6 +292,8 @@ Respond ONLY with valid JSON in this exact structure:
 
   let location = null;
   const localities = [
+    { key: 'icfai university', val: 'Gangtok' },
+    { key: 'icfai', val: 'Gangtok' },
     { key: '5th mile', val: '5th Mile' },
     { key: '6th mile', val: '5th Mile' },
     { key: 'sikkim university', val: '5th Mile' },
@@ -416,7 +425,7 @@ Description: ${pg.description || ''}
 
 Respond ONLY with valid JSON in this exact structure:
 {
-  "bestFor": "1-sentence summary of the ideal tenant (e.g. Perfect for SMIT Majitar students who prioritize quiet study and included meals)",
+  "bestFor": "1-sentence summary of the ideal tenant (e.g. Perfect for ICFAI University or SMIT Majitar students who prioritize quiet study and included meals)",
   "highlights": ["Highlight 1", "Highlight 2", "Highlight 3"],
   "sikkimTip": "1 practical tip about living in this locality in Sikkim (weather, commute, or campus proximity)"
 }`;

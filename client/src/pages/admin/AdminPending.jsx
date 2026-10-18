@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Check, X, ChevronDown, ChevronUp, Home, Trash2, AlertTriangle, Info, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Check, X, ChevronDown, ChevronUp, Home, Trash2, AlertTriangle, Info, CheckCircle2, RefreshCw, UserCheck, UserX, FileText, ExternalLink, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import Modal from '../../components/ui/Modal';
 import StatusPill from '../../components/ui/StatusPill';
+import { extractDocUrl } from '../../utils/avatarHelper';
 
 export default function AdminPending() {
-  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users, fetchAdminData } = useData();
+  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users, fetchAdminData, approveOwner, rejectOwner } = useData();
   const [expanded, setExpanded] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -22,6 +23,22 @@ export default function AdminPending() {
     toast.success('Approvals queue refreshed');
   };
 
+  // Safe document opening handler (never navigates into a relative 404 URL)
+  const handleOpenDoc = (rawUrl, label = 'Document') => {
+    const url = extractDocUrl(rawUrl);
+    if (!url || !url.startsWith('http')) {
+      toast.error(`No valid ${label} URL available.`);
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Owner moderation modals
+  const [confirmApproveModal, setConfirmApproveModal] = useState(null);
+  const [approvingOwnerId, setApprovingOwnerId] = useState(null);
+  const [rejectOwnerModal, setRejectOwnerModal] = useState(null);
+  const [rejectOwnerReason, setRejectOwnerReason] = useState('');
+  const [isRejectingOwner, setIsRejectingOwner] = useState(false);
   // Deletion modals
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(null);
   const [declineDeleteModal, setDeclineDeleteModal] = useState(null);
@@ -31,9 +48,49 @@ export default function AdminPending() {
   const [legacyRejectModal, setLegacyRejectModal] = useState(null);
   const [legacyRejectReason, setLegacyRejectReason] = useState('');
 
+  const pendingOwners = users.filter((u) => u.ownerRequestStatus === 'pending');
   const deletePGs = pgs.filter(p => p.status === 'pending_delete' && !p.isDeleted);
   const newPGs = pgs.filter(p => p.status === 'pending' && !p.isDeleted);
   const updatePGs = pgs.filter(p => p.status === 'pending_update' && !p.isDeleted);
+
+  const totalPendingCount = pendingOwners.length + deletePGs.length;
+
+  // Owner Handlers
+  const handleApproveOwner = async (userId, userName) => {
+    setApprovingOwnerId(userId);
+    try {
+      await approveOwner(userId);
+      toast.success(`Owner request for "${userName || 'User'}" approved!`);
+      setConfirmApproveModal(null);
+      await fetchAdminData?.();
+    } catch (e) {
+      console.error('Failed to approve owner request:', e);
+      toast.error(e?.message || 'Failed to approve owner request');
+    } finally {
+      setApprovingOwnerId(null);
+    }
+  };
+
+  const handleRejectOwner = async () => {
+    if (!rejectOwnerModal?.userId) return;
+    if (!rejectOwnerReason.trim()) {
+      toast.error('Please enter a reason for declining the owner request');
+      return;
+    }
+    setIsRejectingOwner(true);
+    try {
+      await rejectOwner(rejectOwnerModal.userId, rejectOwnerReason.trim());
+      toast.success(`Owner request for "${rejectOwnerModal.userName}" declined.`);
+      setRejectOwnerModal(null);
+      setRejectOwnerReason('');
+      await fetchAdminData?.();
+    } catch (e) {
+      console.error('Failed to decline owner request:', e);
+      toast.error(e?.message || 'Failed to decline owner request');
+    } finally {
+      setIsRejectingOwner(false);
+    }
+  };
 
   // Deletion Handlers
   const handleApproveDelete = async () => {
@@ -89,15 +146,24 @@ export default function AdminPending() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-slate-900">Pending Approvals</h1>
-          <p className="text-slate-500 text-sm mt-1">Review owner deletion requests and manage moderation queues</p>
+          <div className="flex items-center gap-2.5">
+            <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">Pending Approvals</h1>
+            {totalPendingCount > 0 && (
+              <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs">
+                {totalPendingCount} Action Required
+              </span>
+            )}
+          </div>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
+            Review owner role applications and property deletion requests
+          </p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs cursor-pointer"
         >
           <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary-600' : ''} />
           Refresh Queue
@@ -105,21 +171,146 @@ export default function AdminPending() {
       </div>
 
       {/* Info notice */}
-      <div className="flex items-start gap-3 p-4 bg-blue-50/70 border border-blue-200/60 rounded-2xl text-xs text-blue-800">
-        <Info size={17} className="text-blue-600 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-3.5 sm:p-4 bg-blue-50/70 border border-blue-200/60 rounded-xl sm:rounded-2xl text-xs text-blue-800">
+        <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <span className="font-semibold text-blue-900">Direct Listing Active:</span> Property owners now publish and update listings directly. Only PG deletion requests require admin review and approval.
+          <span className="font-semibold text-blue-900">Moderation Active:</span> Review student-to-owner KYC applications and PG deletion requests. Approved owners can immediately manage and list PG properties.
         </div>
+      </div>
+
+      {/* SECTION: Pending Owner Requests (KYC) */}
+      <div>
+        <div className="flex items-center justify-between gap-2.5 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-purple-600" />
+            <h2 className="font-semibold text-slate-900 text-base sm:text-lg">Pending Owner Requests (KYC)</h2>
+          </div>
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+            pendingOwners.length > 0 ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {pendingOwners.length}
+          </span>
+        </div>
+
+        {pendingOwners.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center shadow-xs">
+            <CheckCircle2 size={30} className="mx-auto text-emerald-400 mb-2" />
+            <p className="text-slate-600 font-medium text-sm">No pending owner requests</p>
+            <p className="text-slate-400 text-xs mt-0.5">All owner KYC applications have been reviewed.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {pendingOwners.map((u) => {
+              const details = u.ownerRequestDetails || {};
+              const userAvatar = u.avatar || u.avatar_url || '';
+              const propDoc = extractDocUrl(u.kyc_doc_url || u.propertyDocumentUrl || details.propertyDocumentUrl, userAvatar);
+              const idDoc = extractDocUrl(u.kyc_id_doc_url || u.identityDocumentUrl || details.identityDocumentUrl, userAvatar);
+              const hasDocs = Boolean(propDoc || idDoc);
+
+              return (
+                <div key={u.id} className="bg-white rounded-2xl border-2 border-purple-200/80 shadow-xs overflow-hidden">
+                  <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden border border-purple-200">
+                        {u.avatar || u.avatar_url ? (
+                          <img src={u.avatar || u.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          u.name?.charAt(0)?.toUpperCase() || 'U'
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-slate-900 text-base truncate">
+                            {u.name}
+                          </h3>
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                            Pending Owner Approval
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-500 flex items-center gap-3 flex-wrap">
+                          <span>Email: <span className="text-slate-700 font-medium">{u.email}</span></span>
+                          {u.phone && <span>· Phone: <span className="text-slate-700 font-medium">{u.phone}</span></span>}
+                          {details.requestedAt && (
+                            <span className="text-slate-400">· Applied: {new Date(details.requestedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          )}
+                        </div>
+
+                        {/* Document inspection links */}
+                        <div className="pt-2 flex items-center gap-2.5 flex-wrap">
+                          <span className="text-xs font-semibold text-slate-600">Documents:</span>
+                          {propDoc ? (
+                            <a
+                              href={propDoc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold cursor-pointer transition-colors"
+                            >
+                              <FileText size={12} /> Property Doc <ExternalLink size={10} />
+                            </a>
+                          ) : null}
+
+                          {idDoc ? (
+                            <a
+                              href={idDoc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold cursor-pointer transition-colors"
+                            >
+                              <FileText size={12} /> Identity Doc <ExternalLink size={10} />
+                            </a>
+                          ) : null}
+
+                          {!hasDocs && (
+                            <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              No documents uploaded (Properties will list as Unverified upon approval)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                      <button
+                        type="button"
+                        disabled={approvingOwnerId === u.id || isRejectingOwner}
+                        onClick={() => setConfirmApproveModal({ userId: u.id, userName: u.name, hasDocs })}
+                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                      >
+                        <UserCheck size={14} /> Approve Owner
+                      </button>
+                      <button
+                        type="button"
+                        disabled={approvingOwnerId === u.id || isRejectingOwner}
+                        onClick={() => {
+                          setRejectOwnerModal({ userId: u.id, userName: u.name });
+                          setRejectOwnerReason('');
+                        }}
+                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        <UserX size={14} /> Decline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Primary Section: Pending Delete Requests */}
       <div>
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2.5 mb-3 sm:mb-4">
           <div className="flex items-center gap-2">
             <Trash2 size={18} className="text-rose-600" />
-            <h2 className="font-semibold text-slate-900 text-lg">Pending Deletion Requests</h2>
+            <h2 className="font-semibold text-slate-900 text-base sm:text-lg">Pending Deletion Requests</h2>
           </div>
-          <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
             deletePGs.length > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'
           }`}>
             {deletePGs.length}
@@ -141,61 +332,65 @@ export default function AdminPending() {
 
               return (
                 <div key={pg.id} className="bg-white rounded-2xl border border-rose-100 shadow-xs overflow-hidden">
-                  <div className="p-5 flex flex-col md:flex-row gap-4">
-                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-primary-50 shrink-0">
-                      {pg.images?.[0] ? (
-                        <img src={pg.images[0]} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Home size={22} className="text-primary-300" />
-                        </div>
-                      )}
-                    </div>
-
+                  <div className="p-4 sm:p-5 flex flex-col md:flex-row gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-slate-900 truncate">{pg.title}</h3>
-                          <p className="text-slate-500 text-xs mt-0.5">
-                            {pg.location.area}, {pg.location.city} · Owner: <span className="font-medium text-slate-700">{owner?.name || pg.ownerName}</span>
-                          </p>
+                      <div className="flex gap-3 sm:gap-4">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-primary-50 shrink-0 border border-slate-200">
+                          {pg.images?.[0] ? (
+                            <img src={pg.images[0]} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Home size={22} className="text-primary-300" />
+                            </div>
+                          )}
                         </div>
-                        <StatusPill status={pg.status} />
-                      </div>
 
-                      <div className="flex items-center gap-3 mt-2 flex-wrap">
-                        <span className="text-primary-600 font-semibold text-sm">₹{pg.price.toLocaleString('en-IN')}/mo</span>
-                        <span className="text-slate-400 text-xs">· {pg.roomType} · {pg.genderPreference}</span>
-                        <span className="text-slate-400 text-xs">· Contact: {pg.contactNumber}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1.5 flex-wrap">
+                            <h3 className="font-semibold text-slate-900 text-sm sm:text-base leading-snug truncate">{pg.title}</h3>
+                            <StatusPill status={pg.status} />
+                          </div>
+                          <p className="text-slate-500 text-xs mt-1 truncate">
+                            {pg.location.area}, {pg.location.city} · Owner: <span className="font-semibold text-slate-700">{owner?.name || pg.ownerName}</span>
+                          </p>
+
+                          <div className="flex items-center gap-2 sm:gap-3 mt-1.5 flex-wrap text-xs">
+                            <span className="text-primary-600 font-bold text-sm">₹{pg.price.toLocaleString('en-IN')}/mo</span>
+                            <span className="text-slate-400">· {pg.roomType} · {pg.genderPreference}</span>
+                            <span className="text-slate-500 font-medium">· Contact: {pg.contactNumber}</span>
+                          </div>
+                        </div>
                       </div>
 
                       {reason && (
-                        <div className="mt-3 p-3 bg-rose-50 border border-rose-200/80 rounded-xl">
+                        <div className="mt-3 p-3 sm:p-3.5 bg-rose-50 border border-rose-200/80 rounded-xl">
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-800 mb-1">
-                            <AlertTriangle size={13} className="text-rose-600" />
+                            <AlertTriangle size={13} className="text-rose-600 shrink-0" />
                             Owner's Reason for Deletion:
                           </div>
-                          <p className="text-xs text-rose-950 font-normal leading-relaxed">{reason}</p>
+                          <p className="text-xs text-rose-950 font-normal leading-relaxed pl-5">{reason}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex md:flex-col gap-2 shrink-0 justify-end md:justify-center pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-                      <button
-                        onClick={() => setConfirmDeleteModal(pg)}
-                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-                      >
-                        <Trash2 size={13} /> Approve Delete
-                      </button>
-                      <button
-                        onClick={() => setDeclineDeleteModal(pg)}
-                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition-colors"
-                      >
-                        <X size={13} /> Decline Request
-                      </button>
+                    <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 md:justify-center pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                      <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:flex-col">
+                        <button
+                          onClick={() => setConfirmDeleteModal(pg)}
+                          className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={13} /> Approve Delete
+                        </button>
+                        <button
+                          onClick={() => setDeclineDeleteModal(pg)}
+                          className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          <X size={13} /> Decline Request
+                        </button>
+                      </div>
                       <button
                         onClick={() => setExpanded(isExpanded ? null : pg.id)}
-                        className="flex items-center justify-center gap-1 px-3 py-2 text-slate-500 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors"
+                        className="w-full flex items-center justify-center gap-1 px-3 py-1.5 text-slate-500 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors cursor-pointer"
                       >
                         Details {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       </button>
@@ -316,6 +511,73 @@ export default function AdminPending() {
           rows={4}
           placeholder="e.g., Incomplete documentation, inaccurate images..."
           className="input-field resize-none text-sm"
+        />
+      </Modal>
+
+      {/* Modal: Confirm Approve Owner */}
+      <Modal
+        isOpen={!!confirmApproveModal}
+        onClose={() => setConfirmApproveModal(null)}
+        title="Approve Owner Request"
+        onConfirm={() =>
+          handleApproveOwner(
+            confirmApproveModal?.userId,
+            confirmApproveModal?.userName
+          )
+        }
+        confirmText={approvingOwnerId ? "Approving..." : "Confirm & Approve"}
+        confirmVariant="primary"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-700">
+            Are you sure you want to approve{" "}
+            <span className="font-semibold text-slate-900">
+              "{confirmApproveModal?.userName}"
+            </span>{" "}
+            as a PG Owner?
+          </p>
+          {confirmApproveModal?.hasDocs ? (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800">
+              <span className="font-semibold">Documents Attached: </span>
+              Verification documents are available. Properties listed by this owner will automatically show the <strong>Verified</strong> badge upon listing approval.
+            </div>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              <span className="font-semibold">No Documents Attached: </span>
+              This user has not uploaded KYC documents yet. The user will be granted owner access, but their PG listings will remain <strong>Unverified</strong> until valid documents are submitted.
+            </div>
+          )}
+          <p className="text-xs text-slate-500">
+            The user will be immediately upgraded to Owner role and will receive an in-app confirmation notification.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Modal: Decline Owner Request */}
+      <Modal
+        isOpen={!!rejectOwnerModal}
+        onClose={() => {
+          setRejectOwnerModal(null);
+          setRejectOwnerReason("");
+        }}
+        title="Decline Owner Request"
+        onConfirm={handleRejectOwner}
+        confirmText={isRejectingOwner ? "Declining..." : "Decline Request"}
+        confirmVariant="danger"
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Please provide a reason for declining the owner request for{" "}
+          <span className="font-semibold text-slate-900">
+            "{rejectOwnerModal?.userName}"
+          </span>
+          . The user will be notified of this reason.
+        </p>
+        <textarea
+          value={rejectOwnerReason}
+          onChange={(e) => setRejectOwnerReason(e.target.value)}
+          rows={4}
+          placeholder="e.g. Identity document unclear, property verification failed..."
+          className="input-field resize-none text-sm w-full"
         />
       </Modal>
     </div>

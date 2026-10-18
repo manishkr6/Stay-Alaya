@@ -1,12 +1,23 @@
+# Dependencies & Build
 node_modules/
 dist/
+
+# Environment files
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
+.env.*
+!.env.example
 
+# Tests & Logs
 coverage/
 *.log
+
+# OS & Editor files
 .DS_Store
-unwanted
 Thumbs.db
+unwanted
 *__pycache__
