@@ -722,7 +722,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-            <p className="text-slate-500 font-medium mb-3">No verified properties found in this filter selection.</p>
+            <p className="text-slate-500 font-medium mb-3">No properties found in this filter selection.</p>
             <button
               onClick={() => {
                 setActiveCategory('All PGs');
@@ -797,7 +797,7 @@ export default function Home() {
 
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
               <span className="text-2xl sm:text-3xl font-black text-[#0f2547] block mb-1">
-                {approvedPGs.length || 7} Verified
+                {approvedPGs.length || 7} Listed
               </span>
               <h4 className="font-bold text-slate-900 text-sm mb-1">Properties in Sikkim</h4>
               <p className="text-xs text-slate-500">Tadong, Deorali, Majitar, Namchi & MG Marg.</p>

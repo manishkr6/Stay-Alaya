@@ -237,7 +237,6 @@ export function DataProvider({ children }) {
       const { data: pgsData, error: pgsErr } = await supabase
         .from('pg_listings')
         .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
-        .eq('is_verified', true)
         .order('created_at', { ascending: false });
 
       if (pgsErr) throw pgsErr;
@@ -617,9 +616,27 @@ export function DataProvider({ children }) {
         supabase.from('reviews').select('*, profiles(full_name, kyc_doc_url, kyc_id_doc_url)').order('created_at', { ascending: false }),
       ]);
 
-      if (pgsRes.data) setPgs(pgsRes.data.map(mapPG));
+      const mappedReviews = (reviewsRes.data || []).map(mapReview);
+      if (reviewsRes.data) setReviews(mappedReviews);
       if (usersRes.data) setUsers(usersRes.data.map(mapUser));
-      if (reviewsRes.data) setReviews(reviewsRes.data.map(mapReview));
+
+      if (pgsRes.data) {
+        const mappedPgs = pgsRes.data.map((pg) => {
+          const basePG = mapPG(pg);
+          if (!basePG) return null;
+          const matchingReviews = mappedReviews.filter((r) => String(r.pgId) === String(basePG.id));
+          const realCount = matchingReviews.length;
+          const realAvg = realCount > 0
+            ? Number((matchingReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / realCount).toFixed(1))
+            : 0;
+          return {
+            ...basePG,
+            totalReviews: realCount,
+            averageRating: realAvg,
+          };
+        }).filter(Boolean);
+        setPgs(mappedPgs);
+      }
     } catch (err) {
       console.warn('Failed to fetch admin data from Supabase:', err);
     }
