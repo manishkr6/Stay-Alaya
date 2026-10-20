@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useContext, useEffect } from 'react';
+import { createContext, useState, useCallback, useContext, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { AuthContext } from './AuthContext';
@@ -90,30 +90,50 @@ export function DataProvider({ children }) {
   const [users, setUsers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const mapPG = (pg) => {
+  // Live mutable refs so callbacks & effects never capture stale data or trigger recreation cascades
+  const reviewsRef = useRef(reviews);
+  reviewsRef.current = reviews;
+
+  const pgsRef = useRef(pgs);
+  pgsRef.current = pgs;
+
+  const ownerPgsRef = useRef(ownerPgs);
+  ownerPgsRef.current = ownerPgs;
+
+  const savedPgsRef = useRef(savedPgs);
+  savedPgsRef.current = savedPgs;
+
+  const usersRef = useRef(users);
+  usersRef.current = users;
+
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
+
+  const mapPG = useCallback((pg) => {
     if (!pg) return null;
+    const user = currentUserRef.current;
     const id = String(pg.id);
     const ownerId = String(pg.owner_id || pg.ownerId || '');
     const ownerProfile = pg.profiles || {};
 
     const cleanPgDoc = extractDocUrl(pg.kyc_doc_url);
     const cleanOwnerDoc = extractDocUrl(
-      ownerProfile.kyc_doc_url || (currentUser?.id === ownerId ? currentUser?.kyc_doc_url : null)
+      ownerProfile.kyc_doc_url || (user?.id === ownerId ? user?.kyc_doc_url : null)
     );
     const cleanOwnerIdDoc =
       extractIdDoc(ownerProfile) ||
-      extractDocUrl(currentUser?.id === ownerId ? currentUser?.kyc_id_doc_url : null);
+      extractDocUrl(user?.id === ownerId ? user?.kyc_id_doc_url : null);
 
     const hasDocuments = Boolean(cleanPgDoc || cleanOwnerDoc || cleanOwnerIdDoc);
     const isOwnerVerified =
       ownerProfile.kyc_status === 'verified' ||
-      (currentUser?.id === ownerId && currentUser?.kyc_status === 'verified');
+      (user?.id === ownerId && user?.kyc_status === 'verified');
     const isVerified = Boolean(hasDocuments && (isOwnerVerified || pg.is_verified === true));
 
     const ownerAvatar =
       extractAvatar(ownerProfile) ||
       extractAvatar({ id: ownerId }) ||
-      (currentUser?.id && String(currentUser.id) === ownerId ? (currentUser.avatar_url || currentUser.avatar) : '') ||
+      (user?.id && String(user.id) === ownerId ? (user.avatar_url || user.avatar) : '') ||
       pg.ownerAvatar ||
       pg.owner_avatar ||
       '';
@@ -125,12 +145,12 @@ export function DataProvider({ children }) {
       ownerName:
         ownerProfile.full_name ||
         pg.ownerName ||
-        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.name : null) ||
+        (user?.id && String(user.id) === ownerId ? user.name : null) ||
         'Property Owner',
       ownerEmail:
         ownerProfile.email ||
         pg.ownerEmail ||
-        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.email : ''),
+        (user?.id && String(user.id) === ownerId ? user.email : ''),
       ownerAvatar,
       price: Number(pg.rent ?? pg.price ?? 0),
       rent: Number(pg.rent ?? pg.price ?? 0),
@@ -149,7 +169,7 @@ export function DataProvider({ children }) {
         pg.contact_number ||
         pg.contactNumber ||
         ownerProfile.phone ||
-        (currentUser?.id && String(currentUser.id) === ownerId ? currentUser.phone : null) ||
+        (user?.id && String(user.id) === ownerId ? user.phone : null) ||
         '+919876543210',
       averageRating:
         Number(pg.total_reviews || pg.totalReviews || 0) > 0
@@ -165,29 +185,33 @@ export function DataProvider({ children }) {
       isAvailable: pg.is_available !== false,
       createdAt: pg.created_at ? pg.created_at.split('T')[0] : '',
     };
-  };
+  }, []);
 
-  const mapReview = (r) => ({
-    id: String(r.id),
-    pgId: String(r.pg_id || r.pgId),
-    userId: String(r.user_id || r.userId),
-    userName: r.profiles?.full_name || r.userName || 'Student / User',
-    userAvatar:
-      extractAvatar(r.profiles) ||
-      extractAvatar({ id: r.user_id || r.userId }) ||
-      (currentUser?.id && String(currentUser.id) === String(r.user_id || r.userId)
-        ? (currentUser.avatar_url || currentUser.avatar)
-        : '') ||
-      r.userAvatar ||
-      '',
-    rating: Number(r.rating),
-    comment: r.comment,
-    createdAt: r.created_at ? r.created_at.split('T')[0] : '',
-    rawCreatedAt: r.created_at || '',
-  });
+  const mapReview = useCallback((r) => {
+    const user = currentUserRef.current;
+    return {
+      id: String(r.id),
+      pgId: String(r.pg_id || r.pgId),
+      userId: String(r.user_id || r.userId),
+      userName: r.profiles?.full_name || r.userName || 'Student / User',
+      userAvatar:
+        extractAvatar(r.profiles) ||
+        extractAvatar({ id: r.user_id || r.userId }) ||
+        (user?.id && String(user.id) === String(r.user_id || r.userId)
+          ? (user.avatar_url || user.avatar)
+          : '') ||
+        r.userAvatar ||
+        '',
+      rating: Number(r.rating),
+      comment: r.comment,
+      createdAt: r.created_at ? r.created_at.split('T')[0] : '',
+      rawCreatedAt: r.created_at || '',
+    };
+  }, []);
 
-  const mapUser = (u) => {
-    const avatar = extractAvatar(u) || (currentUser?.id === String(u.id) ? (currentUser.avatar_url || currentUser.avatar) : '') || '';
+  const mapUser = useCallback((u) => {
+    const user = currentUserRef.current;
+    const avatar = extractAvatar(u) || (user?.id === String(u.id) ? (user.avatar_url || user.avatar) : '') || '';
     const cleanPropDoc = extractDocUrl(u.kyc_doc_url || u.propertyDocumentUrl, avatar);
     const cleanIdDoc = extractDocUrl(u.kyc_id_doc_url || u.identityDocumentUrl, avatar);
     const hasDocs = Boolean(cleanPropDoc || cleanIdDoc);
@@ -230,7 +254,7 @@ export function DataProvider({ children }) {
       lastSignIn: u.last_sign_in_at || u.updated_at || u.created_at,
       createdAt: u.created_at,
     };
-  };
+  }, []);
 
   const fetchApprovedPgsAndReviews = useCallback(async () => {
     try {
@@ -248,6 +272,7 @@ export function DataProvider({ children }) {
         .order('created_at', { ascending: false });
 
       const mappedReviews = (reviewsData || []).map(mapReview);
+      reviewsRef.current = mappedReviews;
       setReviews(mappedReviews);
 
       // Compute totalReviews and averageRating strictly from real reviews in the database
@@ -266,55 +291,64 @@ export function DataProvider({ children }) {
         };
       }).filter(Boolean);
 
+      pgsRef.current = mappedPgs;
       setPgs(mappedPgs);
     } catch (err) {
       console.warn('Failed to fetch PGs from Supabase:', err);
     }
-  }, []);
+  }, [mapPG, mapReview]);
 
   const fetchOwnerPgs = useCallback(async () => {
-    if (!currentUser?.id) return;
+    const user = currentUserRef.current;
+    if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from('pg_listings')
         .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
-        .eq('owner_id', currentUser.id)
+        .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOwnerPgs((data || []).map((pg) => {
+      const currentReviews = reviewsRef.current || [];
+      const mappedOwnerPgs = (data || []).map((pg) => {
         const basePG = mapPG(pg);
         if (!basePG) return null;
-        const matchingReviews = reviews.filter((r) => String(r.pgId) === String(basePG.id));
+        const matchingReviews = currentReviews.filter((r) => String(r.pgId) === String(basePG.id));
         const realCount = matchingReviews.length;
         const realAvg = realCount > 0
           ? Number((matchingReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / realCount).toFixed(1))
           : 0;
         return { ...basePG, totalReviews: realCount, averageRating: realAvg };
-      }).filter(Boolean));
+      }).filter(Boolean);
+
+      ownerPgsRef.current = mappedOwnerPgs;
+      setOwnerPgs(mappedOwnerPgs);
     } catch (err) {
       console.warn('Failed to fetch owner PGs from Supabase:', err);
     }
-  }, [currentUser?.id, reviews]);
+  }, [mapPG]);
 
   const fetchSavedPgs = useCallback(async () => {
-    if (!currentUser?.id) return;
+    const user = currentUserRef.current;
+    if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from('saved_pgs')
         .select('*, pg_listings(*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status))')
-        .eq('user_id', currentUser.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
       const list = (data || []).map((item) => mapPG(item.pg_listings)).filter(Boolean);
+      savedPgsRef.current = list;
       setSavedPgs(list);
     } catch (err) {
       console.warn('Failed to fetch saved PGs from Supabase:', err);
     }
-  }, [currentUser?.id]);
+  }, [mapPG]);
 
   const fetchNotifications = useCallback(async () => {
-    if (!currentUser?.id) {
+    const user = currentUserRef.current;
+    if (!user?.id) {
       setNotifications([]);
       setUnreadCount(0);
       return;
@@ -322,19 +356,19 @@ export function DataProvider({ children }) {
 
     try {
       let query;
-      if (currentUser?.role === 'admin') {
+      if (user?.role === 'admin') {
         // Real Supabase query for admin notifications using target_role = 'admin' or broadcast alerts (user_id is null) or addressed to admin
         query = supabase
           .from('notifications')
           .select('*')
-          .or(`target_role.eq.admin,user_id.is.null,user_id.eq.${currentUser.id}`)
+          .or(`target_role.eq.admin,user_id.is.null,user_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
       } else {
         // Real Supabase query for user-specific notifications
         query = supabase
           .from('notifications')
           .select('*')
-          .eq('user_id', currentUser.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
       }
 
@@ -354,10 +388,10 @@ export function DataProvider({ children }) {
           isRead: !!n.is_read,
           createdAt: n.created_at || new Date().toISOString(),
         }))
-        .filter((n) => isNotificationRelevantForRole(n, currentUser));
+        .filter((n) => isNotificationRelevantForRole(n, user));
 
       // As an admin safety check, if there are pending actions or new user signups that don't have notification rows, supplement them
-      if (currentUser?.role === 'admin') {
+      if (user?.role === 'admin') {
         try {
           const [pendingDeletesRes, pendingAddUpdateRes, allProfilesRes] = await Promise.all([
             supabase
@@ -476,17 +510,17 @@ export function DataProvider({ children }) {
       }
 
       let merged = dbList
-        .filter((item) => isNotificationRelevantForRole(item, currentUser))
+        .filter((item) => isNotificationRelevantForRole(item, user))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       // Friendly welcome notification for users who have no notifications yet, saved directly to Supabase
-      if (merged.length === 0 && currentUser.role !== 'admin') {
+      if (merged.length === 0 && user?.role !== 'admin') {
         const welcomePayload = {
-          user_id: currentUser.id,
-          target_role: currentUser.role || 'student',
-          message: `Welcome to Stay Alaya, ${currentUser.name || 'there'}! Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
+          user_id: user.id,
+          target_role: user.role || 'student',
+          message: `Welcome to Stay Alaya, ${user.name || 'there'}! Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
           type: 'WELCOME',
-          related_id: currentUser.id,
+          related_id: user.id,
           is_read: false,
         };
 
@@ -513,9 +547,9 @@ export function DataProvider({ children }) {
           } else {
             merged = [
               {
-                id: `welcome-${currentUser.id}`,
-                userId: currentUser.id,
-                targetRole: currentUser.role || 'student',
+                id: `welcome-${user.id}`,
+                userId: user.id,
+                targetRole: user.role || 'student',
                 message: welcomePayload.message,
                 type: 'WELCOME',
                 relatedId: null,
@@ -527,9 +561,9 @@ export function DataProvider({ children }) {
         } catch (e) {
           merged = [
             {
-              id: `welcome-${currentUser.id}`,
-              userId: currentUser.id,
-              targetRole: currentUser.role || 'student',
+              id: `welcome-${user.id}`,
+              userId: user.id,
+              targetRole: user.role || 'student',
               message: welcomePayload.message,
               type: 'WELCOME',
               relatedId: null,
@@ -545,11 +579,12 @@ export function DataProvider({ children }) {
     } catch (err) {
       console.warn('Failed to fetch notifications from Supabase:', err);
     }
-  }, [currentUser?.id, currentUser?.role, currentUser?.name]);
+  }, []);
 
   const createNotification = useCallback(
     async ({ userId, targetRole, message, type = 'info', relatedId = null }) => {
       try {
+        const user = currentUserRef.current;
         const payload = {
           user_id: userId || null,
           target_role: targetRole || (userId ? null : 'admin'),
@@ -561,8 +596,8 @@ export function DataProvider({ children }) {
 
         let insertedData = null;
         const isSelfOrAdmin =
-          (userId && currentUser?.id && String(userId) === String(currentUser.id)) ||
-          currentUser?.role === 'admin';
+          (userId && user?.id && String(userId) === String(user.id)) ||
+          user?.role === 'admin';
 
         if (isSelfOrAdmin) {
           const { data, error } = await supabase
@@ -605,7 +640,7 @@ export function DataProvider({ children }) {
         return null;
       }
     },
-    [currentUser?.id, currentUser?.role, fetchNotifications]
+    [fetchNotifications]
   );
 
   const fetchAdminData = useCallback(async () => {
@@ -617,8 +652,13 @@ export function DataProvider({ children }) {
       ]);
 
       const mappedReviews = (reviewsRes.data || []).map(mapReview);
+      reviewsRef.current = mappedReviews;
       if (reviewsRes.data) setReviews(mappedReviews);
-      if (usersRes.data) setUsers(usersRes.data.map(mapUser));
+      if (usersRes.data) {
+        const mappedUsers = usersRes.data.map(mapUser);
+        usersRef.current = mappedUsers;
+        setUsers(mappedUsers);
+      }
 
       if (pgsRes.data) {
         const mappedPgs = pgsRes.data.map((pg) => {
@@ -635,25 +675,57 @@ export function DataProvider({ children }) {
             averageRating: realAvg,
           };
         }).filter(Boolean);
+        pgsRef.current = mappedPgs;
         setPgs(mappedPgs);
       }
     } catch (err) {
       console.warn('Failed to fetch admin data from Supabase:', err);
     }
-  }, []);
+  }, [mapPG, mapReview, mapUser]);
 
-  // Initial load
+  // Stable callback refs for realtime subscription to call without triggering subscription cycles
+  const fetchAdminDataRef = useRef(fetchAdminData);
+  fetchAdminDataRef.current = fetchAdminData;
+
+  const fetchApprovedPgsAndReviewsRef = useRef(fetchApprovedPgsAndReviews);
+  fetchApprovedPgsAndReviewsRef.current = fetchApprovedPgsAndReviews;
+
+  const fetchOwnerPgsRef = useRef(fetchOwnerPgs);
+  fetchOwnerPgsRef.current = fetchOwnerPgs;
+
+  const fetchNotificationsRef = useRef(fetchNotifications);
+  fetchNotificationsRef.current = fetchNotifications;
+
+  const fetchSavedPgsRef = useRef(fetchSavedPgs);
+  fetchSavedPgsRef.current = fetchSavedPgs;
+
+  // Initial load guarded by ref: runs once on mount, and once whenever user auth/role changes
+  const hasFetchedInitialRef = useRef(false);
+  const lastFetchedUserKeyRef = useRef(null);
+
   useEffect(() => {
+    const user = currentUser;
+    const userKey = user?.id ? `${user.id}_${user.role}` : 'guest';
+
+    if (lastFetchedUserKeyRef.current === userKey && hasFetchedInitialRef.current) {
+      return;
+    }
+    hasFetchedInitialRef.current = true;
+    lastFetchedUserKeyRef.current = userKey;
+
     let mounted = true;
+
     (async () => {
-      if (currentUser?.role === 'admin') {
+      if (user?.role === 'admin') {
         await fetchAdminData();
       } else {
         await fetchApprovedPgsAndReviews();
-        if (currentUser?.role === 'owner') await fetchOwnerPgs();
+        if (user?.role === 'owner') {
+          await fetchOwnerPgs();
+        }
       }
 
-      if (currentUser?.id) {
+      if (user?.id) {
         await fetchSavedPgs();
         await fetchNotifications();
       }
@@ -662,14 +734,15 @@ export function DataProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [currentUser?.id, currentUser?.role, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications, fetchAdminData]);
+  }, [currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchSavedPgs, fetchNotifications]);
 
-  // Realtime subscription for instant notifications and listings updates without page refresh
+  // Realtime subscription for instant notifications and listings updates without re-subscription churn
   useEffect(() => {
-    if (!currentUser?.id) return;
+    const userId = currentUser?.id;
+    if (!userId) return;
 
     const notifChannel = supabase
-      .channel(`realtime-notifications-${currentUser.id}`)
+      .channel(`realtime-notifications-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -679,20 +752,18 @@ export function DataProvider({ children }) {
         },
         (payload) => {
           if (!payload.new && !payload.old) return;
+          const user = currentUserRef.current;
+          if (!user) return;
+
           const targetUserId = payload.new ? payload.new.user_id : payload.old?.user_id;
           const targetRole = (payload.new?.target_role || payload.new?.targetRole || payload.old?.target_role || payload.old?.targetRole || '').toLowerCase();
-          const isTargetedToCurrent = targetUserId && String(targetUserId) === String(currentUser.id);
+          const isTargetedToCurrent = targetUserId && String(targetUserId) === String(user.id);
           const isAdminAlert = !targetUserId || targetRole === 'admin';
 
-          // Admin receives:
-          // 1. Admin/system alerts (user_id is null or target_role is 'admin')
-          // 2. Personal notifications directly addressed to this admin
-          // Students, Users, Owners receive:
-          // Notifications specifically targeted to their user ID or targetRole
           const shouldReceive =
-            currentUser.role === 'admin'
+            user.role === 'admin'
               ? Boolean(isAdminAlert || isTargetedToCurrent)
-              : Boolean(isTargetedToCurrent || (targetRole && targetRole === currentUser.role));
+              : Boolean(isTargetedToCurrent || (targetRole && targetRole === user.role));
 
           if (!shouldReceive) return;
 
@@ -708,8 +779,7 @@ export function DataProvider({ children }) {
               createdAt: payload.new.created_at,
             };
 
-            // Strict role-specific filter: prevent other users' personal updates (e.g. profile photo updates) from reaching admin
-            if (!isNotificationRelevantForRole(newNotif, currentUser)) {
+            if (!isNotificationRelevantForRole(newNotif, user)) {
               return;
             }
 
@@ -723,9 +793,8 @@ export function DataProvider({ children }) {
               duration: 5000,
             });
 
-            // Automatically refresh admin listings when relevant notifications arrive
-            if (currentUser.role === 'admin') {
-              fetchAdminData();
+            if (user.role === 'admin') {
+              fetchAdminDataRef.current?.();
             }
           } else if (payload.eventType === 'UPDATE') {
             setNotifications((prev) =>
@@ -748,7 +817,7 @@ export function DataProvider({ children }) {
       .subscribe();
 
     const pgChannel = supabase
-      .channel(`realtime-pgs-${currentUser.id}`)
+      .channel(`realtime-pgs-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -757,19 +826,22 @@ export function DataProvider({ children }) {
           table: 'pg_listings',
         },
         async () => {
-          if (currentUser.role === 'admin') {
-            await fetchAdminData();
-            await fetchNotifications();
+          const user = currentUserRef.current;
+          if (user?.role === 'admin') {
+            await fetchAdminDataRef.current?.();
+            await fetchNotificationsRef.current?.();
           } else {
-            await fetchApprovedPgsAndReviews();
-            if (currentUser.role === 'owner') await fetchOwnerPgs();
+            await fetchApprovedPgsAndReviewsRef.current?.();
+            if (user?.role === 'owner') {
+              await fetchOwnerPgsRef.current?.();
+            }
           }
         }
       )
       .subscribe();
 
     const profilesChannel = supabase
-      .channel(`realtime-profiles-${currentUser.id}`)
+      .channel(`realtime-profiles-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -778,9 +850,10 @@ export function DataProvider({ children }) {
           table: 'profiles',
         },
         async () => {
-          if (currentUser.role === 'admin') {
-            await fetchAdminData();
-            await fetchNotifications();
+          const user = currentUserRef.current;
+          if (user?.role === 'admin') {
+            await fetchAdminDataRef.current?.();
+            await fetchNotificationsRef.current?.();
           }
         }
       )
@@ -791,7 +864,7 @@ export function DataProvider({ children }) {
       supabase.removeChannel(pgChannel);
       supabase.removeChannel(profilesChannel);
     };
-  }, [currentUser?.id, currentUser?.role, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchNotifications]);
+  }, [currentUser?.id]);
 
   // ── PG Queries ──
   const getApprovedPGs = useCallback(
@@ -829,10 +902,11 @@ export function DataProvider({ children }) {
   // ── PG Mutations ──
   const addPG = useCallback(
     async (pgData, ownerId) => {
-      const currentUid = currentUser?.id || ownerId;
-      const ownerName = currentUser?.name || currentUser?.full_name || 'Property Owner';
-      const cleanDoc = extractDocUrl(pgData.kyc_doc_url || pgData.propertyDocument || currentUser?.kyc_doc_url);
-      const isVerified = Boolean(cleanDoc && currentUser?.kyc_status === 'verified');
+      const user = currentUserRef.current;
+      const currentUid = user?.id || ownerId;
+      const ownerName = user?.name || user?.full_name || 'Property Owner';
+      const cleanDoc = extractDocUrl(pgData.kyc_doc_url || pgData.propertyDocument || user?.kyc_doc_url);
+      const isVerified = Boolean(cleanDoc && user?.kyc_status === 'verified');
 
       const { data, error } = await supabase
         .from('pg_listings')
@@ -860,7 +934,7 @@ export function DataProvider({ children }) {
       if (error) throw error;
       await fetchApprovedPgsAndReviews();
       await fetchOwnerPgs();
-      if (currentUser?.role === 'admin') await fetchAdminData();
+      if (user?.role === 'admin') await fetchAdminData();
 
       // Notify the owner
       if (currentUid) {
@@ -884,14 +958,15 @@ export function DataProvider({ children }) {
 
       return data;
     },
-    [currentUser?.id, currentUser?.name, currentUser?.full_name, currentUser?.role, currentUser?.kyc_doc_url, currentUser?.kyc_status, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
+    [fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
   );
 
   const updatePG = useCallback(
     async (id, pgData) => {
-      const ownerName = currentUser?.name || currentUser?.full_name || 'Property Owner';
-      const cleanDoc = extractDocUrl(pgData.kyc_doc_url || pgData.propertyDocument || currentUser?.kyc_doc_url);
-      const isVerified = Boolean(cleanDoc && currentUser?.kyc_status === 'verified');
+      const user = currentUserRef.current;
+      const ownerName = user?.name || user?.full_name || 'Property Owner';
+      const cleanDoc = extractDocUrl(pgData.kyc_doc_url || pgData.propertyDocument || user?.kyc_doc_url);
+      const isVerified = Boolean(cleanDoc && user?.kyc_status === 'verified');
 
       const { error } = await supabase
         .from('pg_listings')
@@ -917,11 +992,11 @@ export function DataProvider({ children }) {
       if (error) throw error;
       await fetchApprovedPgsAndReviews();
       await fetchOwnerPgs();
-      if (currentUser?.role === 'admin') await fetchAdminData();
+      if (user?.role === 'admin') await fetchAdminData();
 
-      if (currentUser?.id) {
+      if (user?.id) {
         await createNotification({
-          userId: currentUser.id,
+          userId: user.id,
           targetRole: 'owner',
           message: `Your updates to "${pgData.title}" have been saved and are now live.`,
           type: 'UPDATE_PG',
@@ -938,16 +1013,20 @@ export function DataProvider({ children }) {
         relatedId: id,
       });
     },
-    [currentUser?.id, currentUser?.name, currentUser?.full_name, currentUser?.role, currentUser?.kyc_doc_url, currentUser?.kyc_status, fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
+    [fetchApprovedPgsAndReviews, fetchOwnerPgs, fetchAdminData, createNotification]
   );
 
   const deletePG = useCallback(
     async (id, reason = '') => {
-      if (currentUser?.role === 'admin') {
-        const target = pgs.find((p) => String(p.id) === String(id));
+      const user = currentUserRef.current;
+      const currentPgs = pgsRef.current;
+      const currentOwnerPgs = ownerPgsRef.current;
+
+      if (user?.role === 'admin') {
+        const target = currentPgs.find((p) => String(p.id) === String(id));
         const { error } = await supabase.from('pg_listings').delete().eq('id', id);
         if (error) throw error;
-        if (target?.ownerId && String(target.ownerId) !== String(currentUser?.id)) {
+        if (target?.ownerId && String(target.ownerId) !== String(user?.id)) {
           await createNotification({
             userId: target.ownerId,
             targetRole: 'owner',
@@ -966,10 +1045,10 @@ export function DataProvider({ children }) {
         if (error) throw error;
         await fetchOwnerPgs();
 
-        const target = (ownerPgs.length > 0 ? ownerPgs : pgs).find((p) => String(p.id) === String(id));
-        if (currentUser?.id) {
+        const target = (currentOwnerPgs.length > 0 ? currentOwnerPgs : currentPgs).find((p) => String(p.id) === String(id));
+        if (user?.id) {
           await createNotification({
-            userId: currentUser.id,
+            userId: user.id,
             targetRole: 'owner',
             message: `Your deletion request for "${target?.title || 'PG'}" was submitted for admin review.`,
             type: 'DELETE_PG',
@@ -980,18 +1059,18 @@ export function DataProvider({ children }) {
         await createNotification({
           userId: null,
           targetRole: 'admin',
-          message: `Deletion request submitted for PG "${target?.title || 'PG'}" by ${currentUser?.name || 'Owner'}. Reason: ${reason || 'Requested by owner'}`,
+          message: `Deletion request submitted for PG "${target?.title || 'PG'}" by ${user?.name || 'Owner'}. Reason: ${reason || 'Requested by owner'}`,
           type: 'DELETE_PG',
           relatedId: id,
         });
       }
     },
-    [currentUser?.id, currentUser?.name, currentUser?.role, pgs, ownerPgs, fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, createNotification]
+    [fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, createNotification]
   );
 
   const approveDeletePG = useCallback(
     async (id) => {
-      const target = pgs.find((p) => String(p.id) === String(id));
+      const target = pgsRef.current.find((p) => String(p.id) === String(id));
       const { error } = await supabase.from('pg_listings').delete().eq('id', id);
       if (error) throw error;
 
@@ -1017,12 +1096,12 @@ export function DataProvider({ children }) {
       await fetchAdminData();
       await fetchNotifications();
     },
-    [pgs, createNotification, fetchApprovedPgsAndReviews, fetchAdminData, fetchNotifications]
+    [createNotification, fetchApprovedPgsAndReviews, fetchAdminData, fetchNotifications]
   );
 
   const rejectDeletePG = useCallback(
     async (id, reason = '') => {
-      const target = pgs.find((p) => String(p.id) === String(id));
+      const target = pgsRef.current.find((p) => String(p.id) === String(id));
       const { error } = await supabase
         .from('pg_listings')
         .update({
@@ -1055,7 +1134,7 @@ export function DataProvider({ children }) {
       await fetchAdminData();
       await fetchNotifications();
     },
-    [pgs, createNotification, fetchApprovedPgsAndReviews, fetchAdminData, fetchNotifications]
+    [createNotification, fetchApprovedPgsAndReviews, fetchAdminData, fetchNotifications]
   );
 
   const approvePG = useCallback(
@@ -1065,7 +1144,7 @@ export function DataProvider({ children }) {
         .update({ is_verified: true, status: 'approved' })
         .eq('id', id);
       if (error) throw error;
-      const target = pgs.find((p) => String(p.id) === String(id));
+      const target = pgsRef.current.find((p) => String(p.id) === String(id));
       if (target?.ownerId) {
         await createNotification({
           userId: target.ownerId,
@@ -1077,7 +1156,7 @@ export function DataProvider({ children }) {
       }
       await fetchAdminData();
     },
-    [pgs, createNotification, fetchAdminData]
+    [createNotification, fetchAdminData]
   );
 
   const rejectPG = useCallback(
@@ -1087,7 +1166,7 @@ export function DataProvider({ children }) {
         .update({ status: 'rejected', rejection_reason: reason })
         .eq('id', id);
       if (error) throw error;
-      const target = pgs.find((p) => String(p.id) === String(id));
+      const target = pgsRef.current.find((p) => String(p.id) === String(id));
       if (target?.ownerId) {
         await createNotification({
           userId: target.ownerId,
@@ -1099,19 +1178,20 @@ export function DataProvider({ children }) {
       }
       await fetchAdminData();
     },
-    [pgs, createNotification, fetchAdminData]
+    [createNotification, fetchAdminData]
   );
 
   // ── Save PGs ──
   const savePGToggle = useCallback(
     async (arg1, arg2) => {
+      const user = currentUserRef.current;
       const pgId = arg2 !== undefined ? arg2 : arg1;
-      const uid = (arg2 !== undefined && arg1) ? arg1 : currentUser?.id;
+      const uid = (arg2 !== undefined && arg1) ? arg1 : user?.id;
       if (!uid || !pgId) return;
 
-      const targetPg = pgs.find((p) => String(p.id) === String(pgId));
+      const targetPg = pgsRef.current.find((p) => String(p.id) === String(pgId));
       const pgTitle = targetPg?.title || 'PG accommodation';
-      const isSaved = savedPgs.some((s) => String(s.id) === String(pgId));
+      const isSaved = savedPgsRef.current.some((s) => String(s.id) === String(pgId));
 
       try {
         if (isSaved) {
@@ -1137,7 +1217,7 @@ export function DataProvider({ children }) {
 
       await fetchSavedPgs();
     },
-    [currentUser?.id, savedPgs, pgs, fetchSavedPgs, createNotification]
+    [fetchSavedPgs, createNotification]
   );
 
   const getSavedPGs = useCallback(() => savedPgs, [savedPgs]);
@@ -1145,7 +1225,8 @@ export function DataProvider({ children }) {
   // ── Reviews ──
   const addReview = useCallback(
     async (pgId, userId, userName, rating, comment) => {
-      const uid = userId || currentUser?.id;
+      const user = currentUserRef.current;
+      const uid = userId || user?.id;
       const { error } = await supabase.from('reviews').insert({
         pg_id: pgId,
         user_id: uid,
@@ -1162,22 +1243,28 @@ export function DataProvider({ children }) {
         .eq('pg_id', pgId);
 
       const mappedReviews = (updatedReviews || []).map(mapReview);
-      setReviews((prev) => [
-        ...prev.filter((r) => String(r.pgId) !== String(pgId)),
-        ...mappedReviews,
-      ]);
+      setReviews((prev) => {
+        const next = [
+          ...prev.filter((r) => String(r.pgId) !== String(pgId)),
+          ...mappedReviews,
+        ];
+        reviewsRef.current = next;
+        return next;
+      });
 
       const sum = mappedReviews.reduce((acc, r) => acc + Number(r.rating), 0);
       const count = mappedReviews.length;
       const avg = count > 0 ? Number((sum / count).toFixed(1)) : 0;
 
-      setPgs((prev) =>
-        prev.map((p) =>
+      setPgs((prev) => {
+        const next = prev.map((p) =>
           String(p.id) === String(pgId)
             ? { ...p, averageRating: avg, totalReviews: count }
             : p
-        )
-      );
+        );
+        pgsRef.current = next;
+        return next;
+      });
 
       // Update Supabase pg_listings metrics
       try {
@@ -1192,7 +1279,7 @@ export function DataProvider({ children }) {
         console.warn('Notice updating listing rating metrics:', err);
       }
 
-      const targetPg = pgs.find((p) => String(p.id) === String(pgId));
+      const targetPg = pgsRef.current.find((p) => String(p.id) === String(pgId));
       if (targetPg?.ownerId && String(targetPg.ownerId) !== String(uid)) {
         await createNotification({
           userId: targetPg.ownerId,
@@ -1212,7 +1299,7 @@ export function DataProvider({ children }) {
         });
       }
     },
-    [currentUser?.id, pgs, createNotification]
+    [mapReview, createNotification]
   );
 
   const getPGReviews = useCallback(
@@ -1234,7 +1321,7 @@ export function DataProvider({ children }) {
   // ── Admin Users Management ──
   const approveOwner = useCallback(
     async (userId) => {
-      const target = users.find((u) => String(u.id) === String(userId));
+      const target = usersRef.current.find((u) => String(u.id) === String(userId));
       const hasDocs = Boolean(
         target?.kyc_doc_url ||
         target?.kyc_id_doc_url ||
@@ -1245,8 +1332,8 @@ export function DataProvider({ children }) {
       );
 
       // Optimistically update local users state immediately
-      setUsers((prev) =>
-        prev.map((u) =>
+      setUsers((prev) => {
+        const next = prev.map((u) =>
           String(u.id) === String(userId)
             ? {
                 ...u,
@@ -1255,8 +1342,10 @@ export function DataProvider({ children }) {
                 ownerRequestStatus: 'approved',
               }
             : u
-        )
-      );
+        );
+        usersRef.current = next;
+        return next;
+      });
 
       const { error } = await supabase
         .from('profiles')
@@ -1287,14 +1376,14 @@ export function DataProvider({ children }) {
 
       await Promise.all([fetchAdminData(), fetchNotifications()]);
     },
-    [users, createNotification, fetchAdminData, fetchNotifications]
+    [createNotification, fetchAdminData, fetchNotifications]
   );
 
   const rejectOwner = useCallback(
     async (userId, reason = '') => {
       // Optimistically update local users state immediately
-      setUsers((prev) =>
-        prev.map((u) =>
+      setUsers((prev) => {
+        const next = prev.map((u) =>
           String(u.id) === String(userId)
             ? {
                 ...u,
@@ -1303,8 +1392,10 @@ export function DataProvider({ children }) {
                 ownerRequestStatus: 'none',
               }
             : u
-        )
-      );
+        );
+        usersRef.current = next;
+        return next;
+      });
 
       const { error } = await supabase
         .from('profiles')
@@ -1342,7 +1433,7 @@ export function DataProvider({ children }) {
 
   const blockUser = useCallback(
     async (userId) => {
-      const target = users.find((u) => String(u.id) === String(userId));
+      const target = usersRef.current.find((u) => String(u.id) === String(userId));
       const { error } = await supabase
         .from('profiles')
         .update({ is_blocked: !target?.isBlocked })
@@ -1350,7 +1441,7 @@ export function DataProvider({ children }) {
       if (error) throw error;
       await fetchAdminData();
     },
-    [users, fetchAdminData]
+    [fetchAdminData]
   );
 
   const changeUserRole = useCallback(
@@ -1360,7 +1451,7 @@ export function DataProvider({ children }) {
         updated_at: new Date().toISOString(),
       };
       if (newRole === 'owner') {
-        const target = users.find((u) => String(u.id) === String(userId));
+        const target = usersRef.current.find((u) => String(u.id) === String(userId));
         const hasDocs = Boolean(
           target?.ownerRequestDetails?.propertyDocumentUrl ||
           target?.ownerRequestDetails?.identityDocumentUrl ||
@@ -1375,8 +1466,8 @@ export function DataProvider({ children }) {
       if (error) throw error;
 
       // Optimistically update local users state
-      setUsers((prev) =>
-        prev.map((u) => {
+      setUsers((prev) => {
+        const next = prev.map((u) => {
           if (String(u.id) === String(userId)) {
             return {
               ...u,
@@ -1385,8 +1476,10 @@ export function DataProvider({ children }) {
             };
           }
           return u;
-        })
-      );
+        });
+        usersRef.current = next;
+        return next;
+      });
 
       const roleLabel = (newRole === 'student' || newRole === 'user') ? 'Student / User' : newRole.toUpperCase();
       await createNotification({
@@ -1403,7 +1496,8 @@ export function DataProvider({ children }) {
 
   const requestOwner = useCallback(
     async ({ fullName, phoneNumber, propertyDocument, identityDocument }) => {
-      if (!currentUser?.id) throw new Error('You must be logged in to request owner access');
+      const user = currentUserRef.current;
+      if (!user?.id) throw new Error('You must be logged in to request owner access');
 
       let propUrl = typeof propertyDocument === 'string' ? propertyDocument : '';
       let idUrl = typeof identityDocument === 'string' ? identityDocument : '';
@@ -1411,11 +1505,11 @@ export function DataProvider({ children }) {
       // Extract user's name from form input, auth metadata, profiles context, or email prefix fallback
       let userName =
         fullName ||
-        currentUser?.user_metadata?.full_name ||
-        currentUser?.user_metadata?.name ||
-        currentUser?.name ||
-        currentUser?.full_name ||
-        (currentUser?.email ? currentUser.email.split('@')[0] : '');
+        user?.user_metadata?.full_name ||
+        user?.user_metadata?.name ||
+        user?.name ||
+        user?.full_name ||
+        (user?.email ? user.email.split('@')[0] : '');
 
       if (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'owner') {
         try {
@@ -1443,19 +1537,19 @@ export function DataProvider({ children }) {
       }
 
       // Sanitize document URLs: ensure profile photo or avatar URLs are NEVER stored as document URLs
-      const userAvatar = currentUser?.avatar_url || currentUser?.avatar || '';
+      const userAvatar = user?.avatar_url || user?.avatar || '';
       const resolvedPropDoc =
         propUrl && propUrl !== userAvatar && !propUrl.includes('/user_profiles/')
           ? propUrl
-          : (currentUser?.kyc_doc_url && currentUser.kyc_doc_url !== userAvatar && !currentUser.kyc_doc_url.includes('/user_profiles/')
-              ? currentUser.kyc_doc_url
+          : (user?.kyc_doc_url && user.kyc_doc_url !== userAvatar && !user.kyc_doc_url.includes('/user_profiles/')
+              ? user.kyc_doc_url
               : null);
 
       const resolvedIdDoc =
         idUrl && idUrl !== userAvatar && !idUrl.includes('/user_profiles/')
           ? idUrl
-          : (currentUser?.kyc_id_doc_url && currentUser.kyc_id_doc_url !== userAvatar && !currentUser.kyc_id_doc_url.includes('/user_profiles/')
-              ? currentUser.kyc_id_doc_url
+          : (user?.kyc_id_doc_url && user.kyc_id_doc_url !== userAvatar && !user.kyc_id_doc_url.includes('/user_profiles/')
+              ? user.kyc_id_doc_url
               : null);
 
       const updates = {
@@ -1469,14 +1563,14 @@ export function DataProvider({ children }) {
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', currentUser.id);
+        .eq('id', user.id);
 
       if (error) throw error;
 
       const hasDocs = Boolean(propUrl || idUrl);
 
       await createNotification({
-        userId: currentUser.id,
+        userId: user.id,
         targetRole: 'student',
         message: hasDocs
           ? 'Your request to become a PG owner (with verification documents) has been submitted for admin review.'
@@ -1487,26 +1581,27 @@ export function DataProvider({ children }) {
       await createNotification({
         userId: null,
         targetRole: 'admin',
-        message: `${fullName || currentUser.name} submitted an owner request ${hasDocs ? 'with verification documents' : '(without documents - unverified)'}.`,
+        message: `${fullName || user.name} submitted an owner request ${hasDocs ? 'with verification documents' : '(without documents - unverified)'}.`,
         type: 'OWNER_REQUEST',
-        relatedId: currentUser.id,
+        relatedId: user.id,
       });
 
       await Promise.all([fetchAdminData?.(), fetchNotifications?.()]);
     },
-    [currentUser, createNotification, fetchAdminData, fetchNotifications]
+    [createNotification, fetchAdminData, fetchNotifications]
   );
 
   const markNotificationsRead = useCallback(async () => {
-    if (!currentUser?.id) return;
+    const user = currentUserRef.current;
+    if (!user?.id) return;
     try {
-      if (currentUser?.role === 'admin') {
+      if (user?.role === 'admin') {
         await supabase
           .from('notifications')
           .update({ is_read: true })
           .or('target_role.eq.admin,user_id.is.null');
       } else {
-        await supabase.from('notifications').update({ is_read: true }).eq('user_id', currentUser.id);
+        await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
       }
     } catch (e) {
       console.warn('Notice updating all notifications is_read:', e);
@@ -1514,7 +1609,7 @@ export function DataProvider({ children }) {
 
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnreadCount(0);
-  }, [currentUser?.id, currentUser?.role]);
+  }, []);
 
   const markOneRead = useCallback(
     async (id) => {
@@ -1571,12 +1666,13 @@ export function DataProvider({ children }) {
   );
 
   const clearAllNotifications = useCallback(async () => {
-    if (!currentUser?.id) return;
+    const user = currentUserRef.current;
+    if (!user?.id) return;
     try {
-      if (currentUser?.role === 'admin') {
+      if (user?.role === 'admin') {
         await supabase.from('notifications').delete().or('target_role.eq.admin,user_id.is.null');
       } else {
-        await supabase.from('notifications').delete().eq('user_id', currentUser.id);
+        await supabase.from('notifications').delete().eq('user_id', user.id);
       }
     } catch (e) {
       console.warn('Notice clearing notifications from Supabase:', e);
@@ -1584,49 +1680,87 @@ export function DataProvider({ children }) {
 
     setNotifications([]);
     setUnreadCount(0);
-  }, [currentUser?.id, currentUser?.role]);
+  }, []);
 
   const getUnreadCount = useCallback(() => unreadCount, [unreadCount]);
 
+  const value = useMemo(
+    () => ({
+      pgs,
+      notifications,
+      reviews,
+      users,
+      getApprovedPGs,
+      getPGById,
+      getOwnerPGs,
+      getOwnerPGById,
+      addPG,
+      updatePG,
+      deletePG,
+      approveDeletePG,
+      rejectDeletePG,
+      approvePG,
+      rejectPG,
+      savePGToggle,
+      getSavedPGs,
+      addReview,
+      getPGReviews,
+      reportPG,
+      approveOwner,
+      rejectOwner,
+      blockUser,
+      changeUserRole,
+      requestOwner,
+      createNotification,
+      markNotificationsRead,
+      markOneRead,
+      markOneUnread,
+      deleteNotification,
+      clearAllNotifications,
+      getUnreadCount,
+      fetchAdminData,
+      fetchNotifications,
+    }),
+    [
+      pgs,
+      notifications,
+      reviews,
+      users,
+      getApprovedPGs,
+      getPGById,
+      getOwnerPGs,
+      getOwnerPGById,
+      addPG,
+      updatePG,
+      deletePG,
+      approveDeletePG,
+      rejectDeletePG,
+      approvePG,
+      rejectPG,
+      savePGToggle,
+      getSavedPGs,
+      addReview,
+      getPGReviews,
+      reportPG,
+      approveOwner,
+      rejectOwner,
+      blockUser,
+      changeUserRole,
+      requestOwner,
+      createNotification,
+      markNotificationsRead,
+      markOneRead,
+      markOneUnread,
+      deleteNotification,
+      clearAllNotifications,
+      getUnreadCount,
+      fetchAdminData,
+      fetchNotifications,
+    ]
+  );
+
   return (
-    <DataContext.Provider
-      value={{
-        pgs,
-        notifications,
-        reviews,
-        users,
-        getApprovedPGs,
-        getPGById,
-        getOwnerPGs,
-        getOwnerPGById,
-        addPG,
-        updatePG,
-        deletePG,
-        approveDeletePG,
-        rejectDeletePG,
-        approvePG,
-        rejectPG,
-        savePGToggle,
-        getSavedPGs,
-        addReview,
-        getPGReviews,
-        reportPG,
-        approveOwner,
-        rejectOwner,
-        blockUser,
-        changeUserRole,
-        requestOwner,
-        createNotification,
-        markNotificationsRead,
-        markOneRead,
-        markOneUnread,
-        deleteNotification,
-        clearAllNotifications,
-        getUnreadCount,
-        fetchAdminData,
-        fetchNotifications,
-      }}
-    >
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );

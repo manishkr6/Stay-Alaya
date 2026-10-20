@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
@@ -475,25 +475,38 @@ export function AuthProvider({ children }) {
 
       return true;
     },
-    [currentUser]
+    [currentUser?.id]
   );
 
   const isAuthenticated = !!currentUser;
 
+  const value = useMemo(
+    () => ({
+      currentUser,
+      loading,
+      isAuthenticated,
+      login,
+      logout,
+      signup,
+      forgotPassword,
+      resetPassword,
+      updateCurrentUser,
+    }),
+    [
+      currentUser,
+      loading,
+      isAuthenticated,
+      login,
+      logout,
+      signup,
+      forgotPassword,
+      resetPassword,
+      updateCurrentUser,
+    ]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        loading,
-        isAuthenticated,
-        login,
-        logout,
-        signup,
-        forgotPassword,
-        resetPassword,
-        updateCurrentUser,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
