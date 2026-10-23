@@ -260,7 +260,7 @@ export function DataProvider({ children }) {
     try {
       const { data: pgsData, error: pgsErr } = await supabase
         .from('pg_listings')
-        .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
+        .select('*, profiles(full_name, email, phone, avatar_url, kyc_doc_url, kyc_id_doc_url, kyc_status)')
         .order('created_at', { ascending: false });
 
       if (pgsErr) throw pgsErr;
@@ -268,7 +268,7 @@ export function DataProvider({ children }) {
       // Fetch actual real reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
-        .select('*, profiles(full_name, kyc_doc_url, kyc_id_doc_url)')
+        .select('*, profiles(full_name, avatar_url, kyc_doc_url, kyc_id_doc_url)')
         .order('created_at', { ascending: false });
 
       const mappedReviews = (reviewsData || []).map(mapReview);
@@ -304,7 +304,7 @@ export function DataProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('pg_listings')
-        .select('*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status)')
+        .select('*, profiles(full_name, email, phone, avatar_url, kyc_doc_url, kyc_id_doc_url, kyc_status)')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -334,7 +334,7 @@ export function DataProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('saved_pgs')
-        .select('*, pg_listings(*, profiles(full_name, email, phone, kyc_doc_url, kyc_id_doc_url, kyc_status))')
+        .select('*, pg_listings(*, profiles(full_name, email, phone, avatar_url, kyc_doc_url, kyc_id_doc_url, kyc_status))')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -648,7 +648,7 @@ export function DataProvider({ children }) {
       const [pgsRes, usersRes, reviewsRes] = await Promise.all([
         supabase.from('pg_listings').select('*, profiles(*)').order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*, profiles(full_name, kyc_doc_url, kyc_id_doc_url)').order('created_at', { ascending: false }),
+        supabase.from('reviews').select('*, profiles(full_name, avatar_url, kyc_doc_url, kyc_id_doc_url)').order('created_at', { ascending: false }),
       ]);
 
       const mappedReviews = (reviewsRes.data || []).map(mapReview);
@@ -1239,7 +1239,7 @@ export function DataProvider({ children }) {
       // Re-fetch reviews for this PG
       const { data: updatedReviews } = await supabase
         .from('reviews')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name, avatar_url)')
         .eq('pg_id', pgId);
 
       const mappedReviews = (updatedReviews || []).map(mapReview);
