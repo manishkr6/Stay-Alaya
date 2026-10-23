@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Trash2, X, ExternalLink, ArrowRight, AlertTriangle, RefreshCw, CheckCircle2, UserCheck, UserX, FileText, ShieldCheck } from 'lucide-react';
+import { Check, Trash2, X, ExternalLink, ArrowRight, AlertTriangle, RefreshCw, CheckCircle2, UserCheck, UserX, FileText, ShieldCheck, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
 import Modal from '../../components/ui/Modal';
 import { formatDistanceToNow } from '../../utils/time';
 import { extractDocUrl } from '../../utils/avatarHelper';
 
-const TYPES = ['ALL', 'DELETE_PG', 'ADD_PG', 'UPDATE_PG', 'REPORT_PG', 'USER_SIGNUP', 'OWNER_REQUEST', 'REVIEW'];
+const TYPES = ['ALL', 'INQUIRY', 'DELETE_PG', 'ADD_PG', 'UPDATE_PG', 'REPORT_PG', 'USER_SIGNUP', 'OWNER_REQUEST', 'REVIEW'];
 const TYPE_META = {
+  INQUIRY: { icon: '📬', label: 'User Inquiry', color: 'bg-emerald-100 text-emerald-800' },
   ADD_PG: { icon: '🏠', label: 'New PG', color: 'bg-blue-100 text-blue-700' },
   UPDATE_PG: { icon: '✏️', label: 'PG Update', color: 'bg-amber-100 text-amber-700' },
   DELETE_PG: { icon: '🗑️', label: 'Delete Request', color: 'bg-rose-100 text-rose-700' },
@@ -310,6 +311,24 @@ export default function AdminNotifications() {
                       </button>
                     </div>
                   )}
+
+                  {n.type === 'INQUIRY' && (() => {
+                    const match = n.message && n.message.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+                    const senderEmail = match ? match[1] : null;
+                    return (
+                      <div className="mt-2.5 flex items-center gap-2">
+                        {senderEmail && (
+                          <a
+                            href={`mailto:${senderEmail}?subject=${encodeURIComponent('Reply from Stay Alaya Support')}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary-600 hover:text-primary-800 font-semibold inline-flex items-center gap-1 hover:underline"
+                          >
+                            <Mail size={12} /> Reply to {senderEmail}
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {n.type === 'OWNER_REQUEST' && (() => {
                     const applicant = users.find(
