@@ -145,27 +145,27 @@ export default function AdminPending() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">Pending Approvals</h1>
             {totalPendingCount > 0 && (
-              <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs">
+              <span className="bg-[#f5a623] text-[#0f2547] text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs">
                 {totalPendingCount} Action Required
               </span>
             )}
           </div>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
             Review owner role applications and property deletion requests
           </p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs cursor-pointer"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2 bg-[#0f2547] text-[#f5a623] hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547] border border-[#f5a623]/30 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
         >
-          <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary-600' : ''} />
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#f5a623]' : 'text-[#f5a623]'} />
           Refresh Queue
         </button>
       </div>

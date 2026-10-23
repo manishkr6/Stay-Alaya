@@ -250,7 +250,7 @@ export default function PlatformGrowthCard({ pgs = [], users = [], reviews = [] 
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="text-[11px] sm:text-xs text-primary-300 hover:text-white flex items-center gap-1 bg-white/10 hover:bg-white/20 px-2 sm:px-2.5 py-1 rounded-lg transition-all"
+            className="text-[11px] sm:text-xs text-[#f5a623] flex items-center gap-1 bg-[#0f2547] hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547] border border-[#f5a623]/40 px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold shadow-xs"
             title="Open comprehensive analytics"
           >
             <span>Breakdown</span>
@@ -259,23 +259,23 @@ export default function PlatformGrowthCard({ pgs = [], users = [], reviews = [] 
         </div>
 
         {/* Tab switcher: Pricing | Areas | Trend | Users */}
-        <div className="grid grid-cols-4 bg-black/30 p-1 rounded-xl mb-3 text-[10.5px] sm:text-[11px] relative z-10 border border-white/5 gap-0.5 sm:gap-1">
+        <div className="grid grid-cols-4 bg-black/40 p-1 rounded-xl mb-3 text-[10.5px] sm:text-[11px] relative z-10 border border-white/10 gap-0.5 sm:gap-1">
           <button
             onClick={() => { setActiveTab('pricing'); setHoveredItem(null); }}
-            className={`py-1 rounded-lg font-medium transition-all text-center truncate ${
+            className={`py-1 rounded-lg font-bold transition-all text-center truncate cursor-pointer ${
               activeTab === 'pricing'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#0f2547] text-[#f5a623] shadow-sm border border-[#f5a623]/40'
+                : 'text-slate-300 hover:text-[#f5a623]'
             }`}
           >
             Pricing
           </button>
           <button
             onClick={() => { setActiveTab('localities'); setHoveredItem(null); }}
-            className={`py-1 rounded-lg font-medium transition-all text-center truncate ${
+            className={`py-1 rounded-lg font-bold transition-all text-center truncate cursor-pointer ${
               activeTab === 'localities'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#0f2547] text-[#f5a623] shadow-sm border border-[#f5a623]/40'
+                : 'text-slate-300 hover:text-[#f5a623]'
             }`}
           >
             <span className="sm:hidden">Areas</span>
@@ -283,20 +283,20 @@ export default function PlatformGrowthCard({ pgs = [], users = [], reviews = [] 
           </button>
           <button
             onClick={() => { setActiveTab('trend'); setHoveredItem(null); }}
-            className={`py-1 rounded-lg font-medium transition-all text-center truncate ${
+            className={`py-1 rounded-lg font-bold transition-all text-center truncate cursor-pointer ${
               activeTab === 'trend'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#0f2547] text-[#f5a623] shadow-sm border border-[#f5a623]/40'
+                : 'text-slate-300 hover:text-[#f5a623]'
             }`}
           >
             Trend
           </button>
           <button
             onClick={() => { setActiveTab('users'); setHoveredItem(null); }}
-            className={`py-1 rounded-lg font-medium transition-all text-center truncate ${
+            className={`py-1 rounded-lg font-bold transition-all text-center truncate cursor-pointer ${
               activeTab === 'users'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#0f2547] text-[#f5a623] shadow-sm border border-[#f5a623]/40'
+                : 'text-slate-300 hover:text-[#f5a623]'
             }`}
           >
             Users

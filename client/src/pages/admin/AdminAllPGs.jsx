@@ -29,7 +29,7 @@ export default function AdminAllPGs() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
       <div>
         <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">All PG Listings</h1>
         <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Manage all PG listings on the platform</p>

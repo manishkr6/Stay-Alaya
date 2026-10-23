@@ -138,47 +138,50 @@ export default function AdminNotifications() {
   const unread = getUnreadCount();
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">{unread} unread notification{unread !== 1 ? 's' : ''}</p>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{unread} unread notification{unread !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition-colors shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#0f2547] text-[#f5a623] hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547] border border-[#f5a623]/30 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
-            <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary-600' : ''} />
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#f5a623]' : 'text-[#f5a623]'} />
             Refresh
           </button>
           {unread > 0 && (
             <button
               onClick={markNotificationsRead}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-[#0f2547] text-[#f5a623] hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547] border border-[#f5a623]/40 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
             >
-              <Check size={14} /> Mark All Read
+              <Check size={14} className="text-[#f5a623]" /> Mark All Read
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none flex-nowrap">
+      <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar flex-nowrap scroll-smooth">
         {TYPES.map(t => {
           const count = t === 'ALL' ? notifications.filter(n => !n.isRead).length : notifications.filter(n => n.type === t && !n.isRead).length;
+          const isActive = activeType === t;
           return (
             <button
               key={t}
               onClick={() => setActiveType(t)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                activeType === t ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-[#0f2547] text-[#f5a623] border border-[#f5a623]/40 shadow-xs hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547]'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-[#0f2547] hover:text-[#f5a623] active:bg-[#f5a623] active:text-[#0f2547]'
               }`}
             >
               {t.replace('_', ' ')}
               {count > 0 && (
-                <span className={`w-4 h-4 rounded-full text-xs flex items-center justify-center font-bold ${
-                  activeType === t ? 'bg-white text-primary-600' : 'bg-primary-100 text-primary-700'
+                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                  isActive ? 'bg-[#f5a623] text-[#0f2547]' : 'bg-slate-100 text-slate-700'
                 }`}>
                   {count}
                 </span>
