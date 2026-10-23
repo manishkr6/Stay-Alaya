@@ -637,8 +637,8 @@ export default function AdminDashboard() {
           </div>
 
           {/* Activity Category Filters */}
-          <div className="px-4 sm:px-6 pt-3 pb-2.5 border-b border-slate-100 bg-slate-50/60">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-nowrap">
+          <div className="px-3 sm:px-6 pt-3 pb-2.5 border-b border-slate-100 bg-slate-50/60 overflow-hidden">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar flex-nowrap scroll-smooth">
               {ACTIVITY_TYPES.map((t) => {
                 const count =
                   t === "ALL"
@@ -649,24 +649,25 @@ export default function AdminDashboard() {
                     ? notifications.length
                     : notifications.filter((n) => n.type === t).length;
                 if (t !== "ALL" && totalCount === 0) return null;
+                const isActive = activityFilter === t;
 
                 return (
                   <button
                     key={t}
                     onClick={() => setActivityFilter(t)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                      activityFilter === t
-                        ? "bg-primary-600 text-white shadow-xs font-semibold"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[#0f2547] text-[#f5a623] border border-[#f5a623]/40 shadow-xs hover:bg-[#f5a623] hover:text-[#0f2547] active:bg-[#e09618] active:text-[#0f2547]"
+                        : "bg-white border border-slate-200 text-slate-700 hover:bg-[#0f2547] hover:text-[#f5a623] active:bg-[#f5a623] active:text-[#0f2547]"
                     }`}
                   >
                     {t === "ALL" ? "ALL" : t.replace("_", " ")}
                     {count > 0 && (
                       <span
                         className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                          activityFilter === t
-                            ? "bg-white text-primary-600"
-                            : "bg-primary-100 text-primary-700"
+                          isActive
+                            ? "bg-[#f5a623] text-[#0f2547]"
+                            : "bg-slate-100 text-slate-700"
                         }`}
                       >
                         {count}
