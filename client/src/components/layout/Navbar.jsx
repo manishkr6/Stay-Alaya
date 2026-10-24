@@ -111,7 +111,7 @@ export default function Navbar() {
         : location.pathname.startsWith(path);
     return `inline-flex items-center gap-1.5 px-4 py-2 rounded-full transition-all duration-200 text-xs sm:text-sm font-semibold whitespace-nowrap ${
       active
-        ? "bg-[#0f2547] text-white shadow-xs"
+        ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
         : "text-slate-700 hover:text-[#0f2547] hover:bg-slate-100/80"
     }`;
   };
@@ -182,17 +182,17 @@ export default function Navbar() {
                     to={item.path}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 text-xs lg:text-sm font-medium whitespace-nowrap ${
                       active
-                        ? "bg-[#0f2547] text-white shadow-xs"
+                        ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
                         : "text-slate-600 hover:text-[#0f2547] hover:bg-slate-100"
                     }`}
                   >
-                    <item.icon size={15} className={active ? "text-white" : "text-[#f5a623]"} />
+                    <item.icon size={15} className="text-[#f5a623]" />
                     <span>{item.label}</span>
                     {item.badge > 0 && (
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-4 h-4 flex items-center justify-center leading-none ${
                           active
-                            ? "bg-white text-[#0f2547]"
+                            ? "bg-[#f5a623] text-[#0f2547]"
                             : "bg-red-500 text-white"
                         }`}
                       >
@@ -208,32 +208,28 @@ export default function Navbar() {
               <Link to="/" className={getNavLinkClass("/", true)}>
                 <Home
                   size={15}
-                  className={location.pathname === "/" ? "text-white" : "text-[#f5a623]"}
+                  className="text-[#f5a623]"
                 />
                 <span className="whitespace-nowrap">Home</span>
               </Link>
               <Link to="/about" className={getNavLinkClass("/about")}>
                 <Info
                   size={15}
-                  className={location.pathname.startsWith("/about") ? "text-white" : "text-[#f5a623]"}
+                  className="text-[#f5a623]"
                 />
                 <span className="whitespace-nowrap">About Us</span>
               </Link>
               <Link to="/find-pg" className={getNavLinkClass("/find-pg")}>
                 <Building2
                   size={15}
-                  className={location.pathname.startsWith("/find-pg") ? "text-white" : "text-[#f5a623]"}
+                  className="text-[#f5a623]"
                 />
                 <span className="whitespace-nowrap">Explore PGs</span>
               </Link>
               <Link to="/list-your-pg" className={getNavLinkClass("/list-your-pg")}>
                 <Plus
                   size={15}
-                  className={
-                    location.pathname.startsWith("/list-your-pg")
-                      ? "text-white stroke-[3]"
-                      : "text-[#f5a623] stroke-[3]"
-                  }
+                  className="text-[#f5a623] stroke-[3]"
                 />
                 <span className="whitespace-nowrap">List PG</span>
               </Link>
@@ -248,7 +244,7 @@ export default function Navbar() {
                   to="/login"
                   className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                     location.pathname === "/login"
-                      ? "bg-slate-100 text-[#0f2547]"
+                      ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
                       : "text-slate-700 hover:text-[#0f2547] hover:bg-slate-100/80"
                   }`}
                 >
@@ -257,7 +253,11 @@ export default function Navbar() {
                 </Link>
                 <Link
                   to="/signup"
-                  className="inline-flex items-center justify-center px-5 py-2 rounded-full text-xs sm:text-sm font-bold bg-[#f5a623] hover:bg-[#e09618] text-[#0f2547] transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                  className={`inline-flex items-center justify-center px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${
+                    location.pathname === "/signup"
+                      ? "bg-[#0f2547] text-[#f5a623] shadow-xs border border-amber-400/30"
+                      : "bg-[#f5a623] hover:bg-[#e09618] text-[#0f2547]"
+                  }`}
                 >
                   Sign Up
                 </Link>
@@ -403,19 +403,13 @@ export default function Navbar() {
                     location.pathname.startsWith(
                       roleLinks[currentUser.role]?.path || "/dashboard",
                     )
-                      ? "bg-[#0f2547] text-white shadow-xs"
+                      ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
                       : "text-slate-700 hover:text-[#0f2547] hover:bg-slate-100/80 border border-slate-200/80 bg-white"
                   }`}
                 >
                   <Building2
                     size={15}
-                    className={
-                      location.pathname.startsWith(
-                        roleLinks[currentUser.role]?.path || "/dashboard",
-                      )
-                        ? "text-[#f5a623]"
-                        : "text-[#0f2547]"
-                    }
+                    className="text-[#f5a623]"
                   />
                   <span>{roleLinks[currentUser.role]?.label || "My Dashboard"}</span>
                 </Link>
@@ -604,19 +598,19 @@ export default function Navbar() {
                       onClick={() => setMobileOpen(false)}
                       className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                         active
-                          ? "bg-[#0f2547] text-white shadow-xs"
+                          ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
                           : "text-slate-700 hover:bg-slate-100"
                       }`}
                     >
                       <span className="flex items-center gap-2.5">
-                        <item.icon size={17} className={active ? "text-white" : "text-[#f5a623]"} />
+                        <item.icon size={17} className="text-[#f5a623]" />
                         {item.label}
                       </span>
                       {item.badge > 0 && (
                         <span
                           className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                             active
-                              ? "bg-white text-[#0f2547]"
+                              ? "bg-[#f5a623] text-[#0f2547]"
                               : "bg-red-500 text-white"
                           }`}
                         >
@@ -673,19 +667,19 @@ export default function Navbar() {
 
               <div className="px-3 py-3 space-y-1">
                 <Link to="/" className={getNavLinkClass("/", true)}>
-                  <Home size={16} className={location.pathname === "/" ? "text-white" : "text-[#f5a623]"} /> Home
+                  <Home size={16} className="text-[#f5a623]" /> Home
                 </Link>
                 <Link to="/about" className={getNavLinkClass("/about")}>
-                  <Info size={16} className={location.pathname.startsWith("/about") ? "text-white" : "text-[#f5a623]"} /> About Us
+                  <Info size={16} className="text-[#f5a623]" /> About Us
                 </Link>
                 <Link to="/find-pg" className={getNavLinkClass("/find-pg")}>
-                  <Building2 size={16} className={location.pathname.startsWith("/find-pg") ? "text-white" : "text-[#f5a623]"} /> Explore PGs
+                  <Building2 size={16} className="text-[#f5a623]" /> Explore PGs
                 </Link>
                 <Link
                   to="/list-your-pg"
                   className={getNavLinkClass("/list-your-pg")}
                 >
-                  <Plus size={16} className={location.pathname.startsWith("/list-your-pg") ? "text-white stroke-[3]" : "text-[#f5a623] stroke-[3]"} /> List PG
+                  <Plus size={16} className="text-[#f5a623] stroke-[3]" /> List PG
                 </Link>
 
                 {!isAuthenticated || isAuthPage ? (

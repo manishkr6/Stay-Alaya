@@ -1,4 +1,4 @@
-# 🏔️ Stay Alaya (Sikkim PG Finder)
+# 🏔️ Stay Aalaya (Sikkim PG Finder)
 
 A modern, verified PG listing and discovery platform built specifically for students and professionals across Sikkim, India (Gangtok, Tadong, Deorali, Namchi, Majitar, and beyond).
 
@@ -6,7 +6,7 @@ A modern, verified PG listing and discovery platform built specifically for stud
 
 ## ⚡ Architecture: Pure Serverless & Direct Integration
 
-Stay Alaya uses a streamlined **Frontend-First Architecture** with **Supabase** and **Cloudinary**. There is **no separate Node/Express or Python backend server** needed.
+Stay Aalaya uses a streamlined **Frontend-First Architecture** with **Supabase** and **Cloudinary**. There is **no separate Node/Express or Python backend server** needed.
 
 - **Frontend:** React 18 + Vite + Tailwind CSS
 - **Database & Realtime:** Supabase (PostgreSQL with `pgvector` for AI vector similarity search)
@@ -61,7 +61,7 @@ Production Admin account configured in Supabase:
 
 | Role  | Email | Capabilities |
 | ----- | ----- | ------------ |
-| **Admin** | `admin@stayalaya.com` (or your configured admin email) | Approves PG listings, verifies KYC, changes user roles, manages users & deletion requests |
+| **Admin** | `admin@stayaalaya.in` (or your configured admin email) | Approves PG listings, verifies KYC, changes user roles, manages users & deletion requests |
 
 Users and owners can self-register using the **Sign Up** page. Admins can promote any user to an Owner or Admin directly from the **Admin Users Management** panel (`/admin/users`) or the Supabase Dashboard.
 

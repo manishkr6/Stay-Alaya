@@ -124,7 +124,7 @@ export default function ForgotPassword() {
                         : 'Instructions sent successfully'}
                     </p>
                     <p className="text-emerald-700 leading-relaxed">
-                      Please open the email from <strong>Stay Alaya</strong> and click the link inside to set your new password.
+                      Please open the email from <strong>Stay Aalaya</strong> and click the link inside to set your new password.
                     </p>
                   </div>
                 </div>

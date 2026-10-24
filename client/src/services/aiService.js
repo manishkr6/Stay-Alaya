@@ -69,7 +69,7 @@ async function callGeminiWithFallback(ai, params) {
 /**
  * 1. AI Chat Assistant for Finding PGs in Sikkim
  */
-export async function chatWithAlayaAI(userMessage, conversationHistory = [], availablePgs = []) {
+export async function chatWithAalayaAI(userMessage, conversationHistory = [], availablePgs = []) {
   const apiKey = getGeminiApiKey();
 
   // Compress listings context to essential fields for token efficiency
@@ -89,10 +89,10 @@ export async function chatWithAlayaAI(userMessage, conversationHistory = [], ava
   if (apiKey) {
     try {
       const ai = getAiClient();
-      const systemInstruction = `You are "Alaya AI", the friendly, knowledgeable, expert PG discovery assistant for "Stay Alaya" in Sikkim, India.
+      const systemInstruction = `You are "Aalaya AI", the friendly, knowledgeable, expert PG discovery assistant for "Stay Aalaya" in Sikkim, India.
 Your mission is to help college students (e.g. ICFAI University, SMIT Majitar, Sikkim University, SRM Sikkim, SMIMS Tadong) and working professionals find their ideal paying guest accommodations in Sikkim (Gangtok, Tadong, Majitar, Deorali, Namchi, Singtam, etc.).
 
-Here are the real, available PG listings currently on Stay Alaya:
+Here are the real, available PG listings currently on Stay Aalaya:
 ${JSON.stringify(pgsContext, null, 2)}
 
 Instructions:
@@ -105,7 +105,7 @@ If none match well or if it's general conversation, output: RECOMMENDED_PG_IDS: 
 
       // Build turn history for Gemini
       const contents = [
-        ...conversationHistory.map((m) => `${m.role === 'user' ? 'User' : 'Alaya AI'}: ${m.text}`),
+        ...conversationHistory.map((m) => `${m.role === 'user' ? 'User' : 'Aalaya AI'}: ${m.text}`),
         `User: ${userMessage}`,
       ].join('\n\n');
 
@@ -143,6 +143,9 @@ If none match well or if it's general conversation, output: RECOMMENDED_PG_IDS: 
   // Graceful Local Smart Matcher Fallback if no Gemini key or on network failure
   return smartLocalPgMatcher(userMessage, availablePgs);
 }
+
+// Backward-compatible alias for existing imports
+export const chatWithAlayaAI = chatWithAalayaAI;
 
 /**
  * Fallback Local Heuristic Search when Gemini API Key is not yet configured

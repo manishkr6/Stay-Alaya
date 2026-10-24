@@ -344,7 +344,7 @@ export default function Home() {
                       step="500"
                       value={maxBudget}
                       onChange={(e) => setMaxBudget(Number(e.target.value))}
-                      className="alaya-budget-slider cursor-pointer mt-1.5 w-full"
+                      className="aalaya-budget-slider cursor-pointer mt-1.5 w-full"
                       style={{
                         background: `linear-gradient(to right, #f5a623 0%, #f5a623 ${((maxBudget - 3500) / (15000 - 3500)) * 100}%, #334155 ${((maxBudget - 3500) / (15000 - 3500)) * 100}%, #334155 100%)`,
                       }}

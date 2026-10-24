@@ -403,7 +403,7 @@ export default function PlatformGrowthCard({ pgs = [], users = [], reviews = [] 
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate">Platform Growth & Analytics</h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">Live operational data from Stay Alaya database</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 truncate">Live operational data from Stay Aalaya database</p>
                 </div>
               </div>
               <button
@@ -641,7 +641,7 @@ export default function PlatformGrowthCard({ pgs = [], users = [], reviews = [] 
             {/* Modal Footer: Responsive buttons */}
             <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-2.5">
               <span className="text-[11px] sm:text-xs text-slate-500 order-2 sm:order-1 text-center sm:text-left">
-                Stay Alaya Admin Intelligence
+                Stay Aalaya Admin Intelligence
               </span>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end order-1 sm:order-2">
                 <button

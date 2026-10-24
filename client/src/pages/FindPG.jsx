@@ -619,7 +619,7 @@ export default function FindPG() {
                 {isAiSearching ? (
                   <span className="inline-flex items-center gap-2 text-[#0f2547] font-bold animate-pulse">
                     <Sparkles size={16} className="text-[#f5a623] animate-spin" />
-                    <span>Alaya AI is analyzing Sikkim PG listings...</span>
+                    <span>Aalaya AI is analyzing Sikkim PG listings...</span>
                   </span>
                 ) : (
                   <>Showing <span className="font-semibold text-slate-900">{filtered.length}</span> properties</>

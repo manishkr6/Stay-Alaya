@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
   const fetchProfile = useCallback(async (sessionUser) => {
     if (!sessionUser) return null;
     try {
-      const { data: profile, error } = await supabase
+      let { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", sessionUser.id)
@@ -49,9 +49,69 @@ export function AuthProvider({ children }) {
         console.error("Error fetching profile from Supabase:", error);
       }
 
-      // If user row is missing from profiles, they have been deleted from database
+      // Check for Google OAuth metadata
+      const googleName =
+        sessionUser.user_metadata?.full_name ||
+        sessionUser.user_metadata?.name ||
+        "";
+      const googleAvatar =
+        sessionUser.user_metadata?.avatar_url ||
+        sessionUser.user_metadata?.picture ||
+        sessionUser.identities?.find((i) => i.identity_data?.avatar_url || i.identity_data?.picture)?.identity_data?.avatar_url ||
+        sessionUser.identities?.find((i) => i.identity_data?.avatar_url || i.identity_data?.picture)?.identity_data?.picture ||
+        "";
+
+      // If user row is missing from profiles, auto-create for OAuth users
       if (!profile) {
-        return { isDeleted: true };
+        const isOAuth =
+          sessionUser.app_metadata?.provider === "google" ||
+          sessionUser.identities?.some((i) => i.provider === "google") ||
+          Boolean(googleAvatar);
+
+        if (isOAuth) {
+          const newProfile = {
+            id: sessionUser.id,
+            full_name: googleName || sessionUser.email?.split("@")[0] || "User",
+            email: sessionUser.email,
+            avatar_url: googleAvatar || "",
+            role: "student",
+            kyc_status: "unsubmitted",
+            is_blocked: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_sign_in_at: new Date().toISOString(),
+          };
+
+          const { data: upserted } = await supabase
+            .from("profiles")
+            .upsert(newProfile)
+            .select()
+            .maybeSingle();
+
+          profile = upserted || newProfile;
+        } else {
+          return { isDeleted: true };
+        }
+      } else {
+        // If profile exists, ensure Google name and avatar photo are auto-saved to database
+        const needsAvatarSync = !profile.avatar_url && Boolean(googleAvatar);
+        const needsNameSync = !profile.full_name && Boolean(googleName);
+        if (needsAvatarSync || needsNameSync) {
+          const syncUpdates = {
+            updated_at: new Date().toISOString(),
+          };
+          if (needsAvatarSync) syncUpdates.avatar_url = googleAvatar;
+          if (needsNameSync) syncUpdates.full_name = googleName;
+
+          supabase
+            .from("profiles")
+            .update(syncUpdates)
+            .eq("id", sessionUser.id)
+            .then(() => {})
+            .catch(() => {});
+
+          profile = { ...profile, ...syncUpdates };
+        }
       }
 
       // If user has been blocked/banned by an administrator
@@ -143,9 +203,21 @@ export function AuthProvider({ children }) {
             window.location.pathname.startsWith("/reset-password") ||
             window.location.hash.includes("type=recovery");
 
+          // Check Remember Me persistence: If user chose not to be remembered,
+          // clear session on fresh browser launch when session storage is empty
+          const rememberSession = localStorage.getItem("stayaalaya_remember_session") || localStorage.getItem("stayalaya_remember_session");
+          const sessionActive = sessionStorage.getItem("stayaalaya_session_active") || sessionStorage.getItem("stayalaya_session_active");
+          if (rememberSession === "false" && !sessionActive && !isRecoveryFlow) {
+            await supabase.auth.signOut().catch(() => {});
+            setCurrentUser(null);
+            localStorage.removeItem("sikkimpg_user");
+            return;
+          }
+
           if (!isRecoveryFlow) {
             setCurrentUser(user);
             localStorage.setItem("sikkimpg_user", JSON.stringify(user));
+            sessionStorage.setItem("stayaalaya_session_active", "true");
           }
 
           // Sync last_sign_in_at to profiles table so admin always sees real sign-in time
@@ -290,7 +362,7 @@ export function AuthProvider({ children }) {
   }, [fetchProfile, handleInvalidUser, navigate]);
 
   const login = useCallback(
-    async (email, password) => {
+    async (email, password, remember = true) => {
       const trimmedEmail = email.trim().toLowerCase();
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -313,6 +385,10 @@ export function AuthProvider({ children }) {
           throw new Error("Your account has been suspended by an administrator.");
         }
 
+        // Store remember session preference
+        localStorage.setItem("stayaalaya_remember_session", remember ? "true" : "false");
+        sessionStorage.setItem("stayaalaya_session_active", "true");
+
         // Non-blocking update of last_sign_in_at on public.profiles
         supabase
           .from("profiles")
@@ -328,6 +404,74 @@ export function AuthProvider({ children }) {
     },
     [fetchProfile]
   );
+
+  const loginWithGoogle = useCallback(async () => {
+    const redirectTo = `${window.location.origin}/dashboard?verified=true`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+    if (error) throw error;
+
+    if (data?.url) {
+      // Pre-check if Google OAuth endpoint is available before redirecting window
+      try {
+        const check = await fetch(data.url, { method: "GET" });
+        if (!check.ok) {
+          const json = await check.json().catch(() => null);
+          console.warn("Google OAuth service check:", json?.msg || json?.error_code || check.status);
+          const err = new Error("Google sign-in is temporarily unavailable. Please sign in with email.");
+          err.code = "AUTH_PROVIDER_UNAVAILABLE";
+          throw err;
+        }
+      } catch (err) {
+        if (err.code === "AUTH_PROVIDER_UNAVAILABLE") {
+          throw err;
+        }
+        // If fetch threw a cross-origin redirect error, that means Supabase accepted the request and forwarded to Google accounts!
+      }
+
+      // If checks pass, navigate window to Google OAuth
+      window.location.href = data.url;
+    }
+    return data;
+  }, []);
+
+  // Development helper to simulate Google OAuth login and auto-sync name and photo into Dashboard
+  const simulateGoogleSignIn = useCallback(async (customInfo = {}) => {
+    const simulatedId = "google-" + Date.now();
+    const mockGoogleUser = {
+      id: simulatedId,
+      email: customInfo.email || "manishkr786@gmail.com",
+      user_metadata: {
+        full_name: customInfo.name || "Manish Kumar",
+        name: customInfo.name || "Manish Kumar",
+        avatar_url:
+          customInfo.avatar ||
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
+        picture:
+          customInfo.avatar ||
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
+        provider: "google",
+      },
+      last_sign_in_at: new Date().toISOString(),
+    };
+
+    const profile = await fetchProfile(mockGoogleUser);
+    setCurrentUser(profile);
+    localStorage.setItem("sikkimpg_user", JSON.stringify(profile));
+    sessionStorage.setItem("stayaalaya_session_active", "true");
+    toast.success(`Welcome to Stay Aalaya, ${profile?.name?.split(" ")[0] || "User"}!`);
+    navigate("/dashboard?verified=true");
+    return profile;
+  }, [fetchProfile, navigate]);
 
   const logout = useCallback(async (redirectPath = "/") => {
     await supabase.auth.signOut().catch(() => {});
@@ -376,7 +520,7 @@ export function AuthProvider({ children }) {
         await supabase.from('notifications').insert({
           user_id: newUserId,
           target_role: role || 'student',
-          message: `Welcome to Stay Alaya, ${cleanName}! Your account has been created successfully. Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
+          message: `Welcome to Stay Aalaya, ${cleanName}! Your account has been created successfully. Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
           type: 'WELCOME',
           related_id: newUserId,
           is_read: false,
@@ -486,6 +630,8 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       login,
+      loginWithGoogle,
+      simulateGoogleSignIn,
       logout,
       signup,
       forgotPassword,
@@ -497,6 +643,8 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       login,
+      loginWithGoogle,
+      simulateGoogleSignIn,
       logout,
       signup,
       forgotPassword,

@@ -61,6 +61,7 @@ export function isNotificationRelevantForRole(n, user) {
       n.message.startsWith('Your deletion request') ||
       n.message.startsWith('Your request to become') ||
       n.message.startsWith('Congratulations! Your') ||
+      n.message.startsWith('Welcome to Stay Aalaya') ||
       n.message.startsWith('Welcome to Stay Alaya')
     )) {
       return false;
@@ -518,7 +519,7 @@ export function DataProvider({ children }) {
         const welcomePayload = {
           user_id: user.id,
           target_role: user.role || 'student',
-          message: `Welcome to Stay Alaya, ${user.name || 'there'}! Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
+          message: `Welcome to Stay Aalaya, ${user.name || 'there'}! Explore verified PGs near colleges in Gangtok, Namchi, and Majitar. Save properties to your wishlist, compare amenities, and leave reviews.`,
           type: 'WELCOME',
           related_id: user.id,
           is_read: false,

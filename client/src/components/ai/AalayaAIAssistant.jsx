@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
-import { chatWithAlayaAI } from '../../services/aiService';
+import { chatWithAalayaAI } from '../../services/aiService';
 
-export default function AlayaAIAssistant() {
+export default function AalayaAIAssistant() {
   const location = useLocation();
   const isPGDetail = location.pathname.startsWith('/pg/');
   const { pgs } = useData();
@@ -32,7 +32,7 @@ export default function AlayaAIAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Khamzang! 🙏 I am **Alaya AI**, your Sikkim PG & Roommate Matchmaker. Tell me what you're looking for (e.g. area in Sikkim, budget, room sharing, or nearby college like ICFAI University, SMIT, or Sikkim University) and I'll find the best verified PGs for you!",
+      text: "Khamzang! 🙏 I am **Aalaya AI**, your Sikkim PG & Roommate Matchmaker. Tell me what you're looking for (e.g. area in Sikkim, budget, room sharing, or nearby college like ICFAI University, SMIT, or Sikkim University) and I'll find the best verified PGs for you!",
       recommendedIds: [],
     },
   ]);
@@ -71,7 +71,7 @@ export default function AlayaAIAssistant() {
 
     try {
       const history = messages.slice(-6); // last 3 turns
-      const result = await chatWithAlayaAI(text, history, pgs);
+      const result = await chatWithAalayaAI(text, history, pgs);
 
       const aiMsg = {
         id: String(Date.now() + 1),
@@ -126,14 +126,14 @@ export default function AlayaAIAssistant() {
           className={`fixed ${
             isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-6'
           } right-4 sm:right-6 z-50 group flex items-center gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-2 ring-amber-400/50`}
-          aria-label="Open Alaya AI Assistant"
+          aria-label="Open Aalaya AI Assistant"
         >
           <div className="relative">
             <Sparkles size={18} className="animate-spin-slow text-[#f5a623]" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full" />
           </div>
-          <span className="font-semibold text-xs sm:text-sm tracking-wide text-white">Ask Alaya AI</span>
+          <span className="font-semibold text-xs sm:text-sm tracking-wide text-white">Ask Aalaya AI</span>
         </button>
       )}
 
@@ -154,7 +154,7 @@ export default function AlayaAIAssistant() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm leading-none text-white">Alaya AI</h3>
+                  <h3 className="font-bold text-sm leading-none text-white">Aalaya AI</h3>
                   <span className="text-[10px] bg-amber-400/20 text-[#f5a623] px-2 py-0.5 rounded-full font-semibold border border-amber-400/30">
                     Gemini 3.8
                   </span>

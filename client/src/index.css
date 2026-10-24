@@ -81,7 +81,8 @@
     @apply bg-white/90 backdrop-blur-md border border-slate-200/70 shadow-sm;
   }
 
-  /* Custom Alaya Budget Range Slider */
+  /* Custom Aalaya Budget Range Slider */
+  .aalaya-budget-slider,
   .alaya-budget-slider {
     -webkit-appearance: none;
     appearance: none;
@@ -91,6 +92,7 @@
     outline: none;
   }
 
+  .aalaya-budget-slider::-webkit-slider-thumb,
   .alaya-budget-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -104,10 +106,12 @@
     transition: transform 0.1s ease;
   }
 
+  .aalaya-budget-slider::-webkit-slider-thumb:hover,
   .alaya-budget-slider::-webkit-slider-thumb:hover {
     transform: scale(1.15);
   }
 
+  .aalaya-budget-slider::-moz-range-thumb,
   .alaya-budget-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
@@ -119,6 +123,7 @@
     transition: transform 0.1s ease;
   }
 
+  .aalaya-budget-slider::-moz-range-thumb:hover,
   .alaya-budget-slider::-moz-range-thumb:hover {
     transform: scale(1.15);
   }

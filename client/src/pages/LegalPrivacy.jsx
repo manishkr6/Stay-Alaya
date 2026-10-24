@@ -139,7 +139,7 @@ export default function PrivacyPolicy() {
               </h2>
               <p>
                 For privacy requests, contact{" "}
-                <span className="font-medium">hello@stayalaya.com</span>.
+                <span className="font-medium">hello@stayaalaya.in</span>.
               </p>
             </section>
           </div>

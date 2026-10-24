@@ -181,7 +181,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (location.search.includes("verified=true") || location.hash.includes("access_token")) {
-      toast.success("Email verified successfully! Welcome to Stay Alaya.", {
+      toast.success("Email verified successfully! Welcome to Stay Aalaya.", {
         id: "email-verified-toast",
       });
     }
@@ -745,7 +745,7 @@ export default function Dashboard() {
                         </h3>
                       </div>
                       <p className="text-emerald-700 text-sm">
-                        You can now list and manage PG properties on Stay Alaya.
+                        You can now list and manage PG properties on Stay Aalaya.
                       </p>
                     </div>
                     <button

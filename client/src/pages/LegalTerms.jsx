@@ -16,7 +16,7 @@ export default function TermsOfService() {
                 1. Acceptance of Terms
               </h2>
               <p>
-                By using Stay Alaya, you agree to these Terms. If you do not
+                By using Stay Aalaya, you agree to these Terms. If you do not
                 agree, please do not use the platform.
               </p>
             </section>
@@ -26,7 +26,7 @@ export default function TermsOfService() {
                 2. Platform Purpose
               </h2>
               <p>
-                Stay Alaya helps users discover and compare PG accommodations
+                Stay Aalaya helps users discover and compare PG accommodations
                 and helps verified owners list properties. We are a discovery
                 and listing platform, not a party to rental agreements between
                 users and property owners.
@@ -108,7 +108,7 @@ export default function TermsOfService() {
                 9. Limitation of Liability
               </h2>
               <p>
-                Stay Alaya is provided on an &quot;as is&quot; basis. We do not
+                Stay Aalaya is provided on an &quot;as is&quot; basis. We do not
                 guarantee uninterrupted availability or outcomes from
                 tenant-owner transactions. Users should verify property details
                 independently before final decisions.
@@ -142,7 +142,7 @@ export default function TermsOfService() {
               </h2>
               <p>
                 For legal or policy questions, contact us at{" "}
-                <span className="font-medium">hello@stayalaya.com</span>.
+                <span className="font-medium">hello@stayaalaya.in</span>.
               </p>
             </section>
           </div>

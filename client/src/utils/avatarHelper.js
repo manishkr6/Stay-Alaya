@@ -1,5 +1,5 @@
 /**
- * Universal Avatar & Document Helper for Stay Alaya
+ * Universal Avatar & Document Helper for Stay Aalaya
  * Provides clean cross-role avatar and document resolution directly from Supabase live schema.
  */
 
@@ -21,6 +21,9 @@ export function extractAvatar(obj) {
   }
   if (obj.profile_image && typeof obj.profile_image === 'string' && obj.profile_image.trim()) {
     return obj.profile_image.trim();
+  }
+  if (obj.picture && typeof obj.picture === 'string' && obj.picture.trim()) {
+    return obj.picture.trim();
   }
 
   // 2. Nested profiles object from Supabase joins (e.g. pg_listings.profiles or reviews.profiles)

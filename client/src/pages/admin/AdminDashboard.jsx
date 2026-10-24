@@ -244,7 +244,7 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
-            Overview and moderation controls for Stay Alaya platform
+            Overview and moderation controls for Stay Aalaya platform
           </p>
         </div>
         <div className="flex items-center gap-2">

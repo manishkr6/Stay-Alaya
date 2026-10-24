@@ -322,7 +322,7 @@ export default function AdminNotifications() {
                       <div className="mt-2.5 flex items-center gap-2">
                         {senderEmail && (
                           <a
-                            href={`mailto:${senderEmail}?subject=${encodeURIComponent('Reply from Stay Alaya Support')}`}
+                            href={`mailto:${senderEmail}?subject=${encodeURIComponent('Reply from Stay Aalaya Support')}`}
                             onClick={(e) => e.stopPropagation()}
                             className="text-xs text-primary-600 hover:text-primary-800 font-semibold inline-flex items-center gap-1 hover:underline"
                           >

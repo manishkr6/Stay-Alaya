@@ -365,7 +365,7 @@ export default function PGDetails() {
                 </p>
               </div>
 
-              {/* ✨ Alaya AI Insights & Smart Summary */}
+              {/* ✨ Aalaya AI Insights & Smart Summary */}
               <div className="border-t border-slate-100 pt-6">
                 <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-white p-5 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-3">
@@ -373,7 +373,7 @@ export default function PGDetails() {
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-primary-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
                         <Sparkles size={14} className="text-amber-300" />
                       </div>
-                      <h3 className="font-bold text-slate-900 text-sm">Alaya AI Insights</h3>
+                      <h3 className="font-bold text-slate-900 text-sm">Aalaya AI Insights</h3>
                       <span className="text-[10px] bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200">
                         Smart Summary
                       </span>

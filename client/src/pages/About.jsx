@@ -262,7 +262,7 @@ export default function About() {
       previewDetails: [
         'Direct rent payment to property owner',
         'Clear agreement on rent, security & notice periods',
-        '24/7 Stay Alaya student support & community',
+        '24/7 Stay Aalaya student support & community',
         'Leave your honest review to help future students',
       ],
       icon: Users,
@@ -351,20 +351,20 @@ export default function About() {
   // FAQ Items
   const faqItems = [
     {
-      q: 'Is Stay Alaya really 100% free for students and tenants?',
-      a: 'Yes, absolutely! Stay Alaya was built by students to eliminate parasitic rental brokerage in Sikkim. Browsing listings, contacting landlords directly, comparing amenities, and using our AI assistant is completely free forever with ₹0 brokerage.',
+      q: 'Is Stay Aalaya really 100% free for students and tenants?',
+      a: 'Yes, absolutely! Stay Aalaya was built by students to eliminate parasitic rental brokerage in Sikkim. Browsing listings, contacting landlords directly, comparing amenities, and using our AI assistant is completely free forever with ₹0 brokerage.',
     },
     {
-      q: 'How does Stay Alaya verify PG listings in Sikkim?',
+      q: 'How does Stay Aalaya verify PG listings in Sikkim?',
       a: 'Every property submitted undergoes an administrative verification protocol. We cross-verify landlord identity, property location, proximity to local taxi stands, room photos, and winter amenities (especially operational water geysers and electricity). Properties that pass receive our official Verified Badge.',
     },
     {
       q: 'Can I schedule a physical or video tour before booking?',
-      a: 'Yes! That is the core benefit of Stay Alaya. When you find a PG you like, click "Contact Owner" to chat on WhatsApp or call them directly. You can request a live video walk-through or arrange an in-person visit at your convenience.',
+      a: 'Yes! That is the core benefit of Stay Aalaya. When you find a PG you like, click "Contact Owner" to chat on WhatsApp or call them directly. You can request a live video walk-through or arrange an in-person visit at your convenience.',
     },
     {
-      q: 'Why is Stay Alaya specially designed for Sikkim?',
-      a: 'Standard national rental platforms treat Gangtok or Majitar like Delhi or Bengaluru, failing to consider mountain topography, hill taxi stands, sub-zero winter temperatures requiring dedicated geysers, and university academic calendars (SMIT, ICFAI, Sikkim Univ). Stay Alaya addresses these exact mountain living realities.',
+      q: 'Why is Stay Aalaya specially designed for Sikkim?',
+      a: 'Standard national rental platforms treat Gangtok or Majitar like Delhi or Bengaluru, failing to consider mountain topography, hill taxi stands, sub-zero winter temperatures requiring dedicated geysers, and university academic calendars (SMIT, ICFAI, Sikkim Univ). Stay Aalaya addresses these exact mountain living realities.',
     },
     {
       q: 'How do I list my property as a PG owner or homestay host?',
@@ -399,7 +399,7 @@ export default function About() {
       initials: 'AK',
       github: 'https://github.com',
       linkedin: 'https://linkedin.com',
-      email: 'anu@stayalaya.com',
+      email: 'anu@stayaalaya.in',
       skills: ['React', 'UI/UX Design', 'TailwindCSS', 'REST APIs', 'State Management'],
       accentColor: 'from-amber-500 to-rose-500',
     },
@@ -423,7 +423,7 @@ export default function About() {
     }
 
     setIsSubmittingMessage(true);
-    const toastId = toast.loading('Sending message to Stay Alaya admin...');
+    const toastId = toast.loading('Sending message to Stay Aalaya admin...');
 
     try {
       if (createNotification) {
@@ -433,7 +433,7 @@ export default function About() {
           message: `📬 Message from ${contactForm.name.trim()} (${contactForm.email.trim()}) regarding "${contactForm.topic}": ${contactForm.message.trim()}`,
         });
       }
-      toast.success('Delivered! Stay Alaya admin has received your inquiry.', { id: toastId });
+      toast.success('Delivered! Stay Aalaya admin has received your inquiry.', { id: toastId });
       setIsModalOpen(false);
       setContactForm({ name: '', email: '', topic: 'Student Inquiry', message: '' });
     } catch (err) {
@@ -478,7 +478,7 @@ export default function About() {
               </h1>
 
               <p className="text-sm sm:text-base lg:text-lg text-slate-600 max-w-2xl leading-relaxed">
-                Stay Alaya connects students and working professionals in Gangtok, Majitar, and Namchi with verified, winter-ready rooms. Directly chat with owners, inspect verified geysers, and never pay broker fees again.
+                Stay Aalaya connects students and working professionals in Gangtok, Majitar, and Namchi with verified, winter-ready rooms. Directly chat with owners, inspect verified geysers, and never pay broker fees again.
               </p>
 
               {/* Call to Actions (Mobile Responsive Stacking) */}
@@ -820,7 +820,7 @@ export default function About() {
                     </div>
 
                     <div className="p-2.5 sm:p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-600 max-w-xs mx-auto">
-                      ✓ Zero fake or unvetted data shown on Stay Alaya.
+                      ✓ Zero fake or unvetted data shown on Stay Aalaya.
                     </div>
 
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
@@ -872,7 +872,7 @@ export default function About() {
               Who We Are & What We Stand For
             </h2>
             <p className="mt-3 sm:mt-4 text-slate-600 text-sm sm:text-base leading-relaxed">
-              Stay Alaya was created right here in Sikkim by engineering students who personally struggled to find dependable, honest, and warm accommodation near college campuses.
+              Stay Aalaya was created right here in Sikkim by engineering students who personally struggled to find dependable, honest, and warm accommodation near college campuses.
             </p>
           </div>
 
@@ -910,7 +910,7 @@ export default function About() {
                     When we first moved to Sikkim for our college education at The ICFAI University, Sikkim, finding a PG was a nightmare. We spent days climbing steep hills in the monsoon rain, calling brokers who demanded an entire month’s rent as fee, and visiting rooms that looked nothing like their internet photos.
                   </p>
                   <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-                    We realized that every year, thousands of new students arriving at The ICFAI University, Sikkim, SMIT Majitar, SMIMS Tadong, and Sikkim University go through this exact ordeal. We founded <strong>Stay Alaya</strong> to replace this chaos with transparency, respect, and modern tech.
+                    We realized that every year, thousands of new students arriving at The ICFAI University, Sikkim, SMIT Majitar, SMIMS Tadong, and Sikkim University go through this exact ordeal. We founded <strong>Stay Aalaya</strong> to replace this chaos with transparency, respect, and modern tech.
                   </p>
                   <div className="pt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-primary-700">
                     <span>✓ Built by Sikkim Students</span>
@@ -925,8 +925,8 @@ export default function About() {
                       🏔️
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-900 text-sm sm:text-base">The Stay Alaya Ethos</h4>
-                      <p className="text-[11px] sm:text-xs text-slate-500">Alaya means &apos;Abode&apos; or &apos;Home&apos; in Sanskrit</p>
+                      <h4 className="font-bold text-slate-900 text-sm sm:text-base">The Stay Aalaya Ethos</h4>
+                      <p className="text-[11px] sm:text-xs text-slate-500">Aalaya means &apos;Abode&apos; or &apos;Home&apos; in Sanskrit</p>
                     </div>
                   </div>
                   <blockquote className="italic text-slate-600 text-xs sm:text-sm border-l-2 border-primary-500 pl-3.5 py-1">
@@ -987,7 +987,7 @@ export default function About() {
               <div className="space-y-6 animate-fade-in">
                 <div className="text-center max-w-2xl mx-auto">
                   <h3 className="font-display text-xl sm:text-2xl font-bold text-slate-900">
-                    Old Broken Way vs. The Stay Alaya Standard
+                    Old Broken Way vs. The Stay Aalaya Standard
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 mt-1">
                     See how we eliminate the friction, wasted money, and stress of traditional PG hunting.
@@ -1009,10 +1009,10 @@ export default function About() {
                     </ul>
                   </div>
 
-                  {/* Stay Alaya */}
+                  {/* Stay Aalaya */}
                   <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 sm:p-6 space-y-3">
                     <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100 px-3 py-1 rounded-full">
-                      ✅ The Stay Alaya Standard
+                      ✅ The Stay Aalaya Standard
                     </div>
                     <ul className="space-y-2 text-xs sm:text-sm text-emerald-950">
                       <li>• <strong>₹0 Brokerage Forever</strong> — 100% of your budget stays in your pocket.</li>
@@ -1090,7 +1090,7 @@ export default function About() {
                     <CircleDollarSign size={14} /> Interactive Savings Tool
                   </span>
                   <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-white mt-2 sm:mt-3 break-words">
-                    Calculate How Much You Save with Stay Alaya
+                    Calculate How Much You Save with Stay Aalaya
                   </h3>
                   <p className="text-slate-300 text-xs sm:text-sm mt-2">
                     Traditional Sikkim middlemen pocket an entire month&apos;s rent. Drag the slider to see how much cash stays in your pocket.
@@ -1116,7 +1116,7 @@ export default function About() {
                     step="500"
                     value={monthlyRent}
                     onChange={(e) => setMonthlyRent(Number(e.target.value))}
-                    className="alaya-budget-slider w-full cursor-pointer"
+                    className="aalaya-budget-slider w-full cursor-pointer"
                   />
 
                   <div className="flex justify-between text-[10px] sm:text-xs text-slate-400 font-medium">
@@ -1154,7 +1154,7 @@ export default function About() {
                       <span className="text-2xl sm:text-3xl font-display font-bold text-emerald-600 block">
                         ₹0
                       </span>
-                      <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold">Stay Alaya</span>
+                      <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold">Stay Aalaya</span>
                     </div>
                   </div>
                 </div>
@@ -1292,7 +1292,7 @@ export default function About() {
               Seamless 4-Step Process
             </span>
             <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mt-2 sm:mt-3 break-words">
-              How Stay Alaya Works
+              How Stay Aalaya Works
             </h2>
             <p className="mt-3 text-slate-600 text-xs sm:text-base">
               Finding and settling into your new Himalayan accommodation takes just 4 clear steps. Click each step below to inspect the details.
@@ -1411,7 +1411,7 @@ export default function About() {
                     </div>
                     <h4 className="text-base sm:text-lg font-bold text-white">{current.previewHighlight}</h4>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Stay Alaya gives you direct autonomy over your stay. No waiting for brokers to call back, no fake promises on winter heating.
+                      Stay Aalaya gives you direct autonomy over your stay. No waiting for brokers to call back, no fake promises on winter heating.
                     </p>
                   </div>
 
@@ -1544,7 +1544,7 @@ export default function About() {
               Frequently Asked Questions
             </h2>
             <p className="mt-2 text-slate-600 text-xs sm:text-sm">
-              Everything you need to know about booking, listing, and winter living with Stay Alaya.
+              Everything you need to know about booking, listing, and winter living with Stay Aalaya.
             </p>
           </div>
 
@@ -1774,7 +1774,7 @@ export default function About() {
             <div className="mb-4 p-2.5 sm:p-3 bg-blue-50/80 border border-blue-100 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
               <ShieldCheck size={15} className="text-primary-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Who receives this?</strong> Your message is sent directly to the <strong>Stay Alaya Admin Dashboard</strong> (under Notifications) where our management team reviews incoming inquiries.
+                <strong>Who receives this?</strong> Your message is sent directly to the <strong>Stay Aalaya Admin Dashboard</strong> (under Notifications) where our management team reviews incoming inquiries.
               </span>
             </div>
 
@@ -1812,7 +1812,7 @@ export default function About() {
                 >
                   <option value="Student Inquiry">Student PG Inquiry (Majitar / Gangtok)</option>
                   <option value="Owner Listing">I want to list my PG or Homestay</option>
-                  <option value="Feature Suggestion">Feature Suggestion for Stay Alaya</option>
+                  <option value="Feature Suggestion">Feature Suggestion for Stay Aalaya</option>
                   <option value="Other">Other Question</option>
                 </select>
               </div>
