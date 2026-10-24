@@ -14,6 +14,7 @@ import Signup from './pages/Signup.jsx';
 import OtpVerification from './pages/OtpVerification.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
+import AuthCallback from './pages/AuthCallback.jsx';
 import ListYourPG from './pages/ListYourPG.jsx';
 import Notifications from './pages/Notifications.jsx';
 import SavedPGs from './pages/SavedPGs.jsx';
@@ -44,7 +45,7 @@ function ScrollToTop() {
 
 // Pages that use the standard Navbar + Footer layout
 const ADMIN_PATHS = ['/admin'];
-const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password'];
+const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/auth/callback'];
 
 function AppLayout({ children }) {
   const { pathname } = useLocation();
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/list-your-pg" element={<ListYourPG />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />

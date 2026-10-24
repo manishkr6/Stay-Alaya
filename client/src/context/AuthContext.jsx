@@ -202,12 +202,14 @@ export function AuthProvider({ children }) {
           const isRecoveryFlow =
             window.location.pathname.startsWith("/reset-password") ||
             window.location.hash.includes("type=recovery");
+          const isCallbackFlow =
+            window.location.pathname.startsWith("/auth/callback");
 
           // Check Remember Me persistence: If user chose not to be remembered,
           // clear session on fresh browser launch when session storage is empty
           const rememberSession = localStorage.getItem("stayaalaya_remember_session") || localStorage.getItem("stayalaya_remember_session");
           const sessionActive = sessionStorage.getItem("stayaalaya_session_active") || sessionStorage.getItem("stayalaya_session_active");
-          if (rememberSession === "false" && !sessionActive && !isRecoveryFlow) {
+          if (rememberSession === "false" && !sessionActive && !isRecoveryFlow && !isCallbackFlow) {
             await supabase.auth.signOut().catch(() => {});
             setCurrentUser(null);
             localStorage.removeItem("sikkimpg_user");
@@ -406,7 +408,7 @@ export function AuthProvider({ children }) {
   );
 
   const loginWithGoogle = useCallback(async () => {
-    const redirectTo = `${window.location.origin}/dashboard?verified=true`;
+    const redirectTo = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -487,7 +489,7 @@ export function AuthProvider({ children }) {
       email: cleanEmail,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard?verified=true`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
         data: {
           full_name: cleanName,
           name: cleanName,
@@ -535,7 +537,7 @@ export function AuthProvider({ children }) {
 
   const forgotPassword = useCallback(async (email) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery&next=/reset-password`,
     });
     if (error) throw error;
     return data;
