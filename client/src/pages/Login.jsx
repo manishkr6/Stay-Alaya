@@ -53,9 +53,15 @@ export default function Login() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Remember Me: Load saved email from localStorage
-  const savedEmail = localStorage.getItem("stayaalaya_remember_email") || localStorage.getItem("stayalaya_remember_email") || "";
-  const savedRemember = (localStorage.getItem("stayaalaya_remember_me") || localStorage.getItem("stayalaya_remember_me")) !== "false";
+  // Remember Me: Load saved email from localStorage (or redirected state)
+  const savedEmail =
+    location.state?.email ||
+    localStorage.getItem("stayaalaya_remember_email") ||
+    localStorage.getItem("stayalaya_remember_email") ||
+    "";
+  const savedRemember =
+    (localStorage.getItem("stayaalaya_remember_me") ||
+      localStorage.getItem("stayalaya_remember_me")) !== "false";
 
   // Auto-change carousel slides every 4.5 seconds
   useEffect(() => {
@@ -86,14 +92,23 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
       email: savedEmail,
       password: "",
-      remember: savedRemember && Boolean(savedEmail),
+      remember: Boolean(savedEmail) ? savedRemember : false,
     },
   });
+
+  // Ensure remembered email and checkbox state are pre-filled on initial mount
+  useEffect(() => {
+    if (savedEmail) {
+      setValue("email", savedEmail);
+      setValue("remember", savedRemember);
+    }
+  }, [savedEmail, savedRemember, setValue]);
 
   const onSubmit = async ({ email, password, remember }) => {
     setError("");
@@ -292,11 +307,13 @@ export default function Login() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {/* Email */}
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="login-email" className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
                   Your Email
                 </label>
                 <input
+                  id="login-email"
                   type="email"
+                  autoComplete="email"
                   {...register("email", {
                     required: "Please enter your email",
                     pattern: {
@@ -316,12 +333,14 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="login-password" className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
                   <input
+                    id="login-password"
                     type={showPass ? "text" : "password"}
+                    autoComplete="current-password"
                     {...register("password", {
                       required: "Please enter your password",
                     })}
@@ -346,8 +365,9 @@ export default function Login() {
 
               {/* Remember Me & Forgot Password Row */}
               <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
+                <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer select-none">
                   <input
+                    id="remember-me"
                     type="checkbox"
                     {...register("remember")}
                     className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 border-slate-300 accent-slate-900 cursor-pointer"
