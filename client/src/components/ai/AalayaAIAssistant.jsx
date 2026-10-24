@@ -124,16 +124,18 @@ export default function AalayaAIAssistant() {
             setIsMinimized(false);
           }}
           className={`fixed ${
-            isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-6'
-          } right-4 sm:right-6 z-50 group flex items-center gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white pl-3.5 pr-4 sm:pl-4 sm:pr-5 py-2.5 sm:py-3 rounded-full shadow-2xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-2 ring-amber-400/50`}
+            isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-3 sm:bottom-6'
+          } right-3 sm:right-6 z-40 group flex items-center gap-1.5 sm:gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-full shadow-xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-1 sm:ring-2 ring-amber-400/50`}
           aria-label="Open Aalaya AI Assistant"
         >
           <div className="relative">
-            <Sparkles size={18} className="animate-spin-slow text-[#f5a623]" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full" />
+            <Sparkles size={16} className="animate-spin-slow text-[#f5a623]" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full" />
           </div>
-          <span className="font-semibold text-xs sm:text-sm tracking-wide text-white">Ask Aalaya AI</span>
+          <span className="font-bold text-[11px] sm:text-xs tracking-wide text-white">
+            <span className="hidden sm:inline">Ask </span>Aalaya AI
+          </span>
         </button>
       )}
 

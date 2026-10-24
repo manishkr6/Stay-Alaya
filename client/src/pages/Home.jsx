@@ -302,7 +302,7 @@ export default function Home() {
             <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse" />
             <span className="font-semibold text-white">#1 AI-Powered PG & Room Finder in</span>
             {/* <span className="text-slate-400">•</span> */}
-            <span className="text-[#f5a623] font-bold">India</span>
+            <span className="text-[#f5a623] font-bold">Sikkim</span>
           </div>
 
           {/* Hero Headline */}
