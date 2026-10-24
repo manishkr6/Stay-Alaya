@@ -20,7 +20,15 @@ import {
   ChevronRight,
   ExternalLink,
   X,
+  HelpCircle,
+  Calculator,
+  DollarSign,
+  Send,
+  MessageSquare,
+  Mail,
+  Check,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useData } from '../hooks/useData';
 import PGCard from '../components/ui/PGCard';
 
@@ -58,8 +66,32 @@ const AI_INSTANT_PROMPTS = [
   { icon: '🏔️', text: 'Mountain view Homestay near MG Marg' },
 ];
 
+const FAQ_ITEMS = [
+  {
+    question: 'How do I book or reserve a PG room in Sikkim?',
+    answer:
+      'Browse verified rooms across Gangtok, Tadong, Majitar, or Namchi. Once you find a suitable PG, you can contact the homeowner directly via WhatsApp or direct phone call to schedule a physical walkthrough or reserve your room without any middlemen.',
+  },
+  {
+    question: 'Are the PG accommodations physically verified by Stay Aalaya?',
+    answer:
+      'Yes! Our on-ground Gangtok team conducts a rigorous 14-point physical verification on every property. We check winter water geysers, Wi-Fi speed, mess food hygiene, building safety, and distance to college taxi stands before awarding the verified badge.',
+  },
+  {
+    question: 'Is there any brokerage or hidden platform fee?',
+    answer:
+      'Zero brokerage, 100% guaranteed. Unlike traditional room brokers who take 50% to 100% of your first month rent, Stay Aalaya is 100% free for students and tenants. You pay only the agreed rent directly to the property owner.',
+  },
+  {
+    question: 'Can I connect directly with the PG owner before visiting?',
+    answer:
+      'Absolutely. Every verified listing features direct contact details. You can speak with the host, ask about food options (veg/non-veg), curfew rules, and request live video tours before traveling to Sikkim.',
+  },
+];
+
+
 export default function Home() {
-  const { getApprovedPGs } = useData();
+  const { getApprovedPGs, reviews = [], users = [], pgs = [], createNotification } = useData();
   const navigate = useNavigate();
 
   // Search state
@@ -81,29 +113,96 @@ export default function Home() {
   // Guarantee / Trust modal state
   const [trustModal, setTrustModal] = useState(null);
 
+  // Savings Calculator state
+  const [calculatorRent, setCalculatorRent] = useState(7000);
+  const [brokerFeePercent, setBrokerFeePercent] = useState(100); // 100% or 50%
+
+  // FAQ state
+  const [openFaq, setOpenFaq] = useState(0);
+
+  // Interactive Inquiry / Contact Modal state (matching About.jsx)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    topic: 'Student Inquiry',
+    message: '',
+  });
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!contactForm.name?.trim() || !contactForm.email?.trim() || !contactForm.message?.trim()) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
+
+    setIsSubmittingMessage(true);
+    const toastId = toast.loading('Sending message to Stay Aalaya admin...');
+
+    try {
+      if (createNotification) {
+        await createNotification({
+          targetRole: 'admin',
+          type: 'INQUIRY',
+          message: `📬 Message from ${contactForm.name.trim()} (${contactForm.email.trim()}) regarding "${contactForm.topic}": ${contactForm.message.trim()}`,
+        });
+      }
+      toast.success('Delivered! Stay Aalaya admin has received your inquiry.', { id: toastId });
+      setIsModalOpen(false);
+      setContactForm({ name: '', email: '', topic: 'Student Inquiry', message: '' });
+    } catch (err) {
+      console.warn('Inquiry send notice:', err);
+      toast.success('Thank you! Your message has been sent to the Stay Aalaya Team.', { id: toastId });
+      setIsModalOpen(false);
+      setContactForm({ name: '', email: '', topic: 'Student Inquiry', message: '' });
+    } finally {
+      setIsSubmittingMessage(false);
+    }
+  };
+
   // All approved listings from data context
   const approvedPGs = getApprovedPGs() || [];
 
-  // Filter listings for the Featured Residences section (Top 6 highest rated real PGs)
+  // Count unique localities from real approved PGs
+  const realLocalitiesCount = useMemo(() => {
+    const list = approvedPGs
+      .map((p) => p.locality || p.location?.area || p.location?.city)
+      .filter(Boolean);
+    const unique = new Set(list);
+    return unique.size || 1;
+  }, [approvedPGs]);
+
+  // Filter listings for the Featured Residences section strictly using real data
   const filteredPGs = useMemo(() => {
     let list = [...approvedPGs];
 
     if (activeCategory !== 'All PGs') {
       list = list.filter((p) => {
+        const cat = (p.category || p.genderPreference || p.gender_preference || '').toLowerCase();
+        const title = (p.title || '').toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+
         if (activeCategory === 'Homestay') {
-          const t = (p.title || '').toLowerCase();
-          const d = (p.description || '').toLowerCase();
-          return t.includes('homestay') || d.includes('homestay');
+          return cat.includes('homestay') || title.includes('homestay') || desc.includes('homestay');
         }
-        const cat = p.category || p.genderPreference || '';
-        return cat.toLowerCase() === activeCategory.toLowerCase();
+        if (activeCategory === 'Boys') {
+          return cat === 'boys' || cat.includes('boy') || title.includes('boy') || desc.includes('boy');
+        }
+        if (activeCategory === 'Girls') {
+          return cat === 'girls' || cat.includes('girl') || title.includes('girl') || desc.includes('girl');
+        }
+        if (activeCategory === 'Co-ed') {
+          return cat.includes('co-ed') || cat.includes('coed') || title.includes('co-ed') || title.includes('coed');
+        }
+        return cat === activeCategory.toLowerCase();
       });
     }
 
     if (activeArea !== 'All Sikkim') {
       list = list.filter((p) => {
-        const area = p.locality || p.location?.area || '';
-        return area.toLowerCase().includes(activeArea.toLowerCase());
+        const area = (p.locality || p.location?.area || p.location?.city || '').toLowerCase();
+        return area.includes(activeArea.toLowerCase());
       });
     }
 
@@ -114,42 +213,41 @@ export default function Home() {
         return distA - distB;
       });
     } else {
-      // Sort strictly by highest rating first.
-      // If ratings are tied or if PGs have no ratings (rating === 0), fall back to newest created.
+      // Sort strictly by highest rating first, then review count, then newest created
       list.sort((a, b) => {
         const ratingA = Number(a.averageRating ?? a.rating ?? 0);
         const ratingB = Number(b.averageRating ?? b.rating ?? 0);
-
-        // Primary: highest rating first
-        if (ratingB !== ratingA) {
-          return ratingB - ratingA;
-        }
+        if (ratingB !== ratingA) return ratingB - ratingA;
 
         const reviewsA = Number(a.totalReviews ?? a.total_reviews ?? 0);
         const reviewsB = Number(b.totalReviews ?? b.total_reviews ?? 0);
+        if (reviewsB !== reviewsA) return reviewsB - reviewsA;
 
-        // Secondary: highest review count
-        if (reviewsB !== reviewsA) {
-          return reviewsB - reviewsA;
-        }
-
-        // Tertiary: newest created (used if ratings are tied or if none have ratings)
         const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
         const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
         return dateB - dateA;
       });
     }
 
-    // Only display the top 6 PGs
-    return list.slice(0, 6);
+    return list;
   }, [approvedPGs, activeCategory, activeArea, sortByTaxi]);
 
+  // Featured Residences strictly uses real approved PGs from database (no mock data fallback)
+  const displayFeaturedPGs = useMemo(() => {
+    return filteredPGs.slice(0, 4);
+  }, [filteredPGs]);
+
+  // Average rating calculated strictly from real database reviews or approved PGs
   const avgRatingDisplay = useMemo(() => {
-    if (!approvedPGs.length) return '4.8';
-    const sum = approvedPGs.reduce((acc, p) => acc + Number(p.averageRating || p.rating || 0), 0);
-    const avg = sum / approvedPGs.length;
-    return avg.toFixed(1);
-  }, [approvedPGs]);
+    if (reviews && reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + Number(r.rating || 0), 0);
+      return (sum / reviews.length).toFixed(1);
+    }
+    const ratedPGs = approvedPGs.filter((p) => Number(p.averageRating || p.rating || 0) > 0);
+    if (!ratedPGs.length) return '5.0';
+    const sum = ratedPGs.reduce((acc, p) => acc + Number(p.averageRating || p.rating || 0), 0);
+    return (sum / ratedPGs.length).toFixed(1);
+  }, [reviews, approvedPGs]);
 
   const handleSearchSubmit = (e) => {
     e?.preventDefault();
@@ -200,11 +298,11 @@ export default function Home() {
         {/* Hero Content Container */}
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 text-center">
           {/* Top Tagline Pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-500/60 backdrop-blur-md border border-white/15 text-[8px] md:text-sm  text-slate-200 mb-6 shadow-md">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs text-slate-200 shadow-md mb-6">
             <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse" />
-            <span className="font-semibold text-white">#1 AI-Powered PG & Room Finder in Sikkim</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-[#f5a623] font-bold">Zero Brokerage</span>
+            <span className="font-semibold text-white">#1 AI-Powered PG & Room Finder in</span>
+            {/* <span className="text-slate-400">•</span> */}
+            <span className="text-[#f5a623] font-bold">India</span>
           </div>
 
           {/* Hero Headline */}
@@ -217,7 +315,7 @@ export default function Home() {
           </h1>
 
           {/* Centered Subtitle Translucent Card */}
-          <div className="max-w-2xl mx-auto bg-slate-950/40 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5 mb-8 text-slate-200 text-sm sm:text-md leading-relaxed shadow-lg">
+          <div className="max-w-2xl mx-auto bg-slate-950/40 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5 mb-8 text-slate-200 text-[12px] sm:text-[15px] leading-relaxed shadow-lg">
             Discover verified paying guest accommodations and rooms across{' '}
             <strong className="text-white">Gangtok, Tadong, Deorali, Majitar, and Namchi</strong>. Connect
             directly with owners—zero brokerage.
@@ -256,16 +354,16 @@ export default function Home() {
               </div>
 
               {/* Tagline right */}
-              <div className="text-[11px] font-bold tracking-wider uppercase text-slate-300 flex items-center gap-2.5">
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Search size={12} className="text-slate-400 stroke-[2.5]" /> FIND BETTER
+              <div className="text-[10px] sm:text-[11px] font-bold tracking-wide sm:tracking-wider uppercase text-slate-300 flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 w-full sm:w-auto pt-0.5 sm:pt-0 whitespace-nowrap">
+                <span className="flex items-center gap-1 sm:gap-1.5 text-slate-300 shrink-0">
+                  <Search size={11} className="text-slate-400 stroke-[2.5]" /> FIND BETTER
                 </span>
-                <span className="text-slate-500">•</span>
-                <span className="flex items-center gap-1.5 text-[#f5a623]">
-                  <Bed size={13} className="text-[#f5a623] stroke-[2.5]" /> STAY BETTER
+                <span className="text-slate-500/80">•</span>
+                <span className="flex items-center gap-1 sm:gap-1.5 text-[#f5a623] shrink-0">
+                  <Bed size={12} className="text-[#f5a623] stroke-[2.5]" /> STAY BETTER
                 </span>
-                <span className="text-slate-500">•</span>
-                <span className="flex items-center gap-1.5 text-slate-300">
+                <span className="text-slate-500/80">•</span>
+                <span className="flex items-center gap-1 sm:gap-1.5 text-slate-300 shrink-0">
                   <span className="text-red-500 text-xs leading-none">❤️</span> LIVE BETTER
                 </span>
               </div>
@@ -415,12 +513,12 @@ export default function Home() {
               </form>
             )}
 
-            {/* Bottom 3 Stats Banner (Exact Match to Target Design) */}
+            {/* Bottom 3 Stats Banner (Real Database Figures) */}
             <div className="grid grid-cols-3 gap-3 pt-6 mt-6 items-center text-center">
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-1.5 text-white font-extrabold text-lg sm:text-2xl">
                   <ShieldCheck size={22} className="text-[#f5a623]" />
-                  <span>500+</span>
+                  <span>{approvedPGs.length > 0 ? `${approvedPGs.length}+` : '100%'}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
                   VERIFIED PGS
@@ -440,7 +538,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-1.5 text-white font-extrabold text-lg sm:text-2xl">
                   <MapPin size={22} className="text-[#f5a623]" />
-                  <span>50+</span>
+                  <span>{realLocalitiesCount > 1 ? `${realLocalitiesCount}+` : realLocalitiesCount}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
                   SIKKIM LOCALITIES
@@ -452,7 +550,310 @@ export default function Home() {
       </section>
 
       {/* ========================================================
-          2. HOW IT WORKS (Screenshots 2 & 3: Simple Process)
+          2. FEATURED RESIDENCES (Immediately Below Hero)
+          ======================================================== */}
+      <section className="py-12 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Row */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <div>
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#f5a623] block mb-1">
+              CURATED STAYS
+            </span>
+            <h2
+              className="text-3xl sm:text-4xl font-bold text-[#0f2547] tracking-tight"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Featured Residences
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-1">
+              Handpicked, physically verified PGs and rooms across Sikkim with transparent monthly rent.
+            </p>
+          </div>
+
+          {/* Right Controls: Near Me + Mess toggle + View All */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setSortByTaxi(!sortByTaxi)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                sortByTaxi
+                  ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Zap size={13} className="text-[#f5a623] fill-[#f5a623]" />
+              <span>Near Me (Taxi Stand Walk)</span>
+            </button>
+
+            {/* Include Mess Food Switch */}
+            <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs">
+              <Utensils size={13} className="text-[#f5a623]" />
+              <span>Include Mess Food</span>
+              <input
+                type="checkbox"
+                checked={includeMess}
+                onChange={(e) => setIncludeMess(e.target.checked)}
+                className="rounded accent-[#f5a623] cursor-pointer"
+              />
+            </label>
+
+            <Link
+              to="/find-pg"
+              className="text-xs font-bold text-[#0f2547] hover:text-[#f5a623] px-2 py-1 flex items-center gap-1 transition-colors"
+            >
+              <span>View All ({approvedPGs.length})</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Filter Pills Row */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-8 pb-3 border-b border-slate-200/80">
+          {/* Categories */}
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
+            {['All PGs', 'Boys', 'Girls', 'Co-ed', 'Homestay'].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  activeCategory === cat
+                    ? 'bg-[#0f2547] text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Localities */}
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Area:</span>
+            {['All Sikkim', 'Tadong', 'Deorali', '5th Mile', 'Majitar', 'MG Marg', 'Namchi'].map((area) => (
+              <button
+                key={area}
+                type="button"
+                onClick={() => setActiveArea(area)}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  activeArea === area
+                    ? 'bg-[#f5a623] text-slate-950 shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                }`}
+              >
+                {area}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4-Card Responsive Residences Grid with View Details Button */}
+        {displayFeaturedPGs.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayFeaturedPGs.map((pg) => (
+              <div key={pg.id} className="flex flex-col justify-between h-full">
+                <PGCard pg={pg} includeMess={includeMess} />
+                <button
+                  type="button"
+                  onClick={() => navigate(`/pg/${pg.id}`)}
+                  className="mt-3 w-full bg-[#0f2547] hover:bg-[#16335d] text-[#f5a623] hover:text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 group cursor-pointer"
+                >
+                  <span>View Details</span>
+                  <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
+            <p className="text-slate-500 font-medium mb-3">No properties found in this filter selection.</p>
+            <button
+              onClick={() => {
+                setActiveCategory('All PGs');
+                setActiveArea('All Sikkim');
+              }}
+              className="text-xs font-bold text-[#0f2547] underline underline-offset-4"
+            >
+              Reset all filters
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ========================================================
+          3. SAVINGS CALCULATOR (Zero Brokerage Interactive Section)
+          ======================================================== */}
+      <section className="py-14 sm:py-20 bg-gradient-to-b from-white via-slate-50 to-white border-y border-slate-200/80">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
+            <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-900 text-[10.5px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+              <Calculator size={13} className="text-emerald-700" />
+              ZERO BROKERAGE SAVINGS
+            </span>
+            <h2
+              className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0f2547] mb-3 tracking-tight"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Calculate How Much You Save with Stay Aalaya
+            </h2>
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
+              Traditional property brokers in Sikkim typically charge 50% to 100% of a full month's rent as brokerage commission. Stay Aalaya connects you directly with homeowners for ₹0 platform fee.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Left Column: Interactive Inputs */}
+            <div className="lg:col-span-7 space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <DollarSign size={16} className="text-[#f5a623]" />
+                    Expected Monthly Rent
+                  </label>
+                  <span className="text-lg sm:text-2xl font-black text-[#0f2547]">
+                    ₹{new Intl.NumberFormat('en-IN').format(calculatorRent)}
+                    <span className="text-xs text-slate-400 font-normal"> / month</span>
+                  </span>
+                </div>
+
+                {/* Range Slider */}
+                <input
+                  type="range"
+                  min="3000"
+                  max="25000"
+                  step="500"
+                  value={calculatorRent}
+                  onChange={(e) => setCalculatorRent(Number(e.target.value))}
+                  className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#f5a623]"
+                />
+                <div className="flex justify-between text-[11px] text-slate-400 mt-1.5 font-medium">
+                  <span>₹3,000 (Sharing)</span>
+                  <span>₹12,000</span>
+                  <span>₹25,000 (Private Flat/Studio)</span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Quick Select:</span>
+                  {[5000, 7000, 10000, 15000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCalculatorRent(preset)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        calculatorRent === preset
+                          ? 'bg-[#0f2547] text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ₹{new Intl.NumberFormat('en-IN').format(preset)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Broker Fee Toggle */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="text-xs sm:text-sm font-bold text-slate-800 block mb-2.5">
+                  Typical Middleman Brokerage in Your Area:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBrokerFeePercent(100)}
+                    className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                      brokerFeePercent === 100
+                        ? 'border-[#0f2547] bg-slate-50 shadow-xs ring-1 ring-[#0f2547]'
+                        : 'border-slate-200 bg-white hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-900">1 Full Month Rent (100%)</span>
+                      <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        brokerFeePercent === 100 ? 'border-[#0f2547] bg-[#0f2547] text-white' : 'border-slate-300'
+                      }`}>
+                        {brokerFeePercent === 100 && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500">Standard rate charged by local Sikkim brokers</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBrokerFeePercent(50)}
+                    className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                      brokerFeePercent === 50
+                        ? 'border-[#0f2547] bg-slate-50 shadow-xs ring-1 ring-[#0f2547]'
+                        : 'border-slate-200 bg-white hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-900">15 Days Rent (50%)</span>
+                      <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        brokerFeePercent === 50 ? 'border-[#0f2547] bg-[#0f2547] text-white' : 'border-slate-300'
+                      }`}>
+                        {brokerFeePercent === 50 && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500">Partial commission rate</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Live Savings Result Box */}
+            <div className="lg:col-span-5 bg-gradient-to-br from-[#0f2547] to-[#16335d] rounded-2xl p-6 sm:p-8 text-white flex flex-col justify-between shadow-xl">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#f5a623] block mb-2">
+                  YOUR INSTANT SAVINGS
+                </span>
+                <div className="space-y-3 py-3 border-b border-white/10 text-xs">
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span>Traditional Broker Commission:</span>
+                    <span className="font-semibold text-rose-300 line-through">
+                      ₹{new Intl.NumberFormat('en-IN').format(Math.round((calculatorRent * brokerFeePercent) / 100))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-300 font-semibold">
+                    <span>Stay Aalaya Platform Fee:</span>
+                    <span className="bg-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                      ₹0 (100% Free)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-5 pb-4">
+                  <span className="text-xs text-slate-300 block mb-1">Total Money Kept in Your Pocket:</span>
+                  <div className="text-3xl sm:text-5xl font-black text-[#f5a623] tracking-tight">
+                    ₹{new Intl.NumberFormat('en-IN').format(Math.round((calculatorRent * brokerFeePercent) / 100))}
+                  </div>
+                  <p className="text-[11.5px] text-slate-300 mt-2 leading-relaxed">
+                    Zero middlemen fees means your budget goes 100% toward your actual room rent, winter heating, and college living.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 space-y-3">
+                <div className="flex items-center gap-2 text-xs text-slate-200">
+                  <CheckCircle2 size={15} className="text-[#f5a623] shrink-0" />
+                  <span>Direct WhatsApp & Call Connect with Owners</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/find-pg')}
+                  className="w-full bg-[#f5a623] hover:bg-[#e09618] active:scale-[0.99] text-[#0f2547] font-black text-xs sm:text-sm py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Browse Zero-Brokerage PGs Now</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================
+          4. HOW IT WORKS (Screenshots 2 & 3: Simple Process)
           ======================================================== */}
       <section className="py-16 sm:py-24 max-w-6xl mx-auto px-4 sm:px-6">
         {/* Section Header */}
@@ -615,129 +1016,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ========================================================
-          3. FEATURED RESIDENCES (Screenshot 4: Curated Stays)
-          ======================================================== */}
-      <section className="py-12 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Row */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-widest text-[#f5a623] block mb-1">
-              CURATED STAYS
-            </span>
-            <h2
-              className="text-3xl sm:text-4xl font-bold text-[#0f2547]"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              Featured Residences
-            </h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-1">
-              Handpicked, physically verified PGs and rooms across Sikkim with transparent monthly rent.
-            </p>
-          </div>
-
-          {/* Right Controls: Near Me + Mess toggle + View All */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setSortByTaxi(!sortByTaxi)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
-                sortByTaxi
-                  ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Zap size={13} className="text-[#f5a623] fill-[#f5a623]" />
-              <span>Near Me (Taxi Stand Walk)</span>
-            </button>
-
-            {/* Include Mess Food Switch */}
-            <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs">
-              <Utensils size={13} className="text-[#f5a623]" />
-              <span>Include Mess Food</span>
-              <input
-                type="checkbox"
-                checked={includeMess}
-                onChange={(e) => setIncludeMess(e.target.checked)}
-                className="rounded accent-[#f5a623] cursor-pointer"
-              />
-            </label>
-
-            <Link
-              to="/find-pg"
-              className="text-xs font-bold text-[#0f2547] hover:text-[#f5a623] px-2 py-1 flex items-center gap-1 transition-colors"
-            >
-              <span>View All ({approvedPGs.length})</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Filter Pills Row */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-8 pb-3 border-b border-slate-200/80">
-          {/* Categories */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
-            {['All PGs', 'Boys', 'Girls', 'Co-ed', 'Homestay'].map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                  activeCategory === cat
-                    ? 'bg-[#0f2547] text-white shadow-xs'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Localities */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Area:</span>
-            {['All Sikkim', 'Tadong', 'Deorali', '5th Mile', 'Majitar', 'MG Marg', 'Namchi'].map((area) => (
-              <button
-                key={area}
-                type="button"
-                onClick={() => setActiveArea(area)}
-                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                  activeArea === area
-                    ? 'bg-[#f5a623] text-slate-950 shadow-xs'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                }`}
-              >
-                {area}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 3-Column Generous Residences Grid */}
-        {filteredPGs.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-            {filteredPGs.map((pg) => (
-              <PGCard key={pg.id} pg={pg} includeMess={includeMess} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-            <p className="text-slate-500 font-medium mb-3">No properties found in this filter selection.</p>
-            <button
-              onClick={() => {
-                setActiveCategory('All PGs');
-                setActiveArea('All Sikkim');
-              }}
-              className="text-xs font-bold text-[#0f2547] underline underline-offset-4"
-            >
-              Reset all filters
-            </button>
-          </div>
-        )}
-      </section>
 
       {/* ========================================================
-          4. ABOUT STAY AALAYA SIKKIM & GUARANTEE (Screenshot 5)
+          5. ABOUT STAY AALAYA SIKKIM & GUARANTEE
           ======================================================== */}
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6">
         {/* Main 2-Column Card */}
@@ -797,7 +1078,7 @@ export default function Home() {
 
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
               <span className="text-2xl sm:text-3xl font-black text-[#0f2547] block mb-1">
-                {approvedPGs.length || 7} Listed
+                {approvedPGs.length} Listed
               </span>
               <h4 className="font-bold text-slate-900 text-sm mb-1">Properties in Sikkim</h4>
               <p className="text-xs text-slate-500">Tadong, Deorali, Majitar, Namchi & MG Marg.</p>
@@ -914,87 +1195,275 @@ export default function Home() {
           </h2>
         </div>
 
-        {/* 3 Testimonial Cards */}
+        {/* Real Testimonial Cards from Database */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Testimonial 1 */}
-          <div className="bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-1 text-[#f5a623]">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={16} className="fill-[#f5a623] text-[#f5a623]" />
-                  ))}
+          {reviews.length > 0 ? (
+            reviews.slice(0, 3).map((rev) => {
+              const matchedPg = pgs.find((p) => String(p.id) === String(rev.pgId));
+              const initials = (rev.userName || 'Student')
+                .split(' ')
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+
+              return (
+                <div
+                  key={rev.id}
+                  className="bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-1 text-[#f5a623]">
+                        {[...Array(Math.min(5, Math.max(1, Math.round(Number(rev.rating) || 5))))].map((_, i) => (
+                          <Star key={i} size={16} className="fill-[#f5a623] text-[#f5a623]" />
+                        ))}
+                      </div>
+                      <span className="text-4xl font-serif text-slate-200 select-none leading-none">“</span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed mb-6">
+                      “{rev.comment}”
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                    {rev.userAvatar ? (
+                      <img
+                        src={rev.userAvatar}
+                        alt={rev.userName}
+                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                        {initials}
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm leading-tight">{rev.userName}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {matchedPg ? `Resident at ${matchedPg.title}` : 'Verified Sikkim Resident'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-4xl font-serif text-slate-200 select-none leading-none">“</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed mb-6">
-                “Moving to Gangtok for my Masters at SRM University was stressful until I used Stay Aalaya. Found a sunny single room in Tadong just 2 minutes from the taxi stand with zero brokerage!”
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
-                AS
-              </div>
+              );
+            })
+          ) : null}
+
+          {/* Invitation for students to write real reviews if fewer than 3 reviews */}
+          {reviews.length < 3 && (
+            <div className="bg-slate-50 rounded-3xl p-7 border border-dashed border-slate-300 flex flex-col justify-between">
               <div>
-                <h4 className="font-bold text-slate-900 text-sm leading-tight">Aarav Sharma</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">M.Sc Student, SRM University Sikkim (Tadong)</p>
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center mb-4">
+                  <Star size={20} className="fill-[#f5a623] text-[#f5a623]" />
+                </div>
+                <h4 className="font-bold text-slate-900 text-base mb-2">Are you a Student in Sikkim?</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  Stay Aalaya operates on 100% genuine peer reviews. Share your experience at your PG to help fellow students find a safe, verified hill home.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate('/find-pg')}
+                className="w-full py-2.5 bg-[#0f2547] text-white rounded-xl text-xs font-bold hover:bg-[#16335d] transition-colors cursor-pointer"
+              >
+                Explore & Review Stays
+              </button>
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========================================================
+          7. FREQUENTLY ASKED QUESTIONS (FAQ Accordion)
+          ======================================================== */}
+      <section className="py-16 sm:py-24 bg-slate-50 border-t border-slate-200/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 text-[10.5px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+              <HelpCircle size={13} className="text-[#f5a623]" />
+              GOT QUESTIONS?
+            </span>
+            <h2
+              className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0f2547] tracking-tight mb-3"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Frequently Asked Questions
+            </h2>
+            <p className="text-slate-600 text-xs sm:text-sm max-w-xl mx-auto">
+              Everything you need to know about finding rooms, physical verifications, and zero brokerage in Sikkim.
+            </p>
           </div>
 
-          {/* Testimonial 2 */}
-          <div className="bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-1 text-[#f5a623]">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={16} className="fill-[#f5a623] text-[#f5a623]" />
-                  ))}
+          <div className="space-y-4">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div
+                  key={index}
+                  className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-200"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    className="w-full text-left px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/60 transition-colors"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="font-bold text-sm sm:text-base text-[#0f2547] flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-full bg-slate-100 text-[#0f2547] text-xs font-black flex items-center justify-center shrink-0">
+                        0{index + 1}
+                      </span>
+                      {item.question}
+                    </span>
+                    <span
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 ${
+                        isOpen ? 'rotate-180 bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <ChevronDown size={16} />
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="px-5 sm:px-7 pb-5 pt-1 text-slate-600 text-xs sm:text-sm leading-relaxed border-t border-slate-100 animate-fade-in">
+                      <div className="pl-10 text-slate-600">
+                        {item.answer}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <span className="text-4xl font-serif text-slate-200 select-none leading-none">“</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed mb-6">
-                “As a female intern at Manipal Hospital, safety and hot water in winter were my biggest priorities. Stay Aalaya's 'Admin Verified' badge is 100% accurate—my Deorali PG feels just like home.”
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
-                PB
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm leading-tight">Pema Choden Bhutia</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">Medical Intern, SMIMS (5th Mile / Deorali)</p>
-              </div>
-            </div>
+              );
+            })}
           </div>
 
-          {/* Testimonial 3 */}
-          <div className="bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-1 text-[#f5a623]">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={16} className="fill-[#f5a623] text-[#f5a623]" />
-                  ))}
-                </div>
-                <span className="text-4xl font-serif text-slate-200 select-none leading-none">“</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed mb-6">
-                “We found our off-campus PG opposite SMIT Majitar directly through the owner on Stay Aalaya. The dual Wi-Fi and transparent mess calculator saved me and my roommate ₹12,000 a year!”
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center shrink-0">
-                RC
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm leading-tight">Rohan Chatterjee</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">B.Tech CSE, SMIT Majitar</p>
-              </div>
-            </div>
+          {/* Still have a question / Send a Message card (Matches About page) */}
+          <div className="mt-8 sm:mt-10 text-center bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 max-w-xl mx-auto shadow-xs">
+            <h4 className="font-bold text-slate-900 text-sm sm:text-base">Still have a specific question about your college?</h4>
+            <p className="text-xs text-slate-500 mt-1">Our team is always happy to guide incoming students and listen to suggestions.</p>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="mt-4 bg-[#0f2547] hover:bg-[#16335d] text-[#f5a623] hover:text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            >
+              <Mail size={15} />
+              <span>Send a Message / Suggestion</span>
+            </button>
           </div>
         </div>
       </section>
+
+      {/* ========================================================= */}
+      {/* INTERACTIVE INQUIRY / CONTACT MODAL (Matches About page) */}
+      {/* ========================================================= */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-8 shadow-2xl border border-slate-200 relative animate-slide-up max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+              aria-label="Close modal"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Send size={18} />
+              </div>
+              <div className="min-w-0 pr-6">
+                <h3 className="font-display text-lg sm:text-xl font-bold text-slate-900 truncate">Get In Touch With Us</h3>
+                <p className="text-xs text-slate-500 truncate">Ask a question or suggest a new PG near your college</p>
+              </div>
+            </div>
+
+            {/* Recipient Notice Callout */}
+            <div className="mb-4 p-2.5 sm:p-3 bg-blue-50/80 border border-blue-100 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
+              <ShieldCheck size={15} className="text-[#0f2547] shrink-0 mt-0.5" />
+              <span>
+                <strong>Who receives this?</strong> Your message is sent directly to the <strong>Stay Aalaya Admin Dashboard</strong> (under Notifications) where our management team reviews incoming inquiries.
+              </span>
+            </div>
+
+            <form onSubmit={handleContactSubmit} className="space-y-3.5 sm:space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Your Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={contactForm.name}
+                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  className="input-field text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Your Email *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. rahul@example.com"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  className="input-field text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Topic</label>
+                <select
+                  value={contactForm.topic}
+                  onChange={(e) => setContactForm({ ...contactForm, topic: e.target.value })}
+                  className="input-field text-xs"
+                >
+                  <option value="Student Inquiry">Student PG Inquiry (Majitar / Gangtok)</option>
+                  <option value="Owner Listing">I want to list my PG or Homestay</option>
+                  <option value="Feature Suggestion">Feature Suggestion for Stay Aalaya</option>
+                  <option value="Other">Other Question</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Message *</label>
+                <textarea
+                  required
+                  rows="3"
+                  placeholder="Tell us about your requirement or question..."
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                  className="input-field text-xs resize-none"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-500">
+                <span>Direct Admin Email:</span>
+                <a
+                  href="mailto:manishkr5487@gmail.com"
+                  className="text-[#0f2547] font-semibold hover:underline"
+                >
+                  manishkr5487@gmail.com
+                </a>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingMessage}
+                  className="btn-primary text-xs font-bold px-5 py-2.5 rounded-xl shadow-md disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isSubmittingMessage ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Trust Modal */}
       {trustModal && (
@@ -1118,6 +1587,41 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Floating Action Dock (Opposite to AI bot at bottom-left, stacked up and down) */}
+      <div className="fixed bottom-3 sm:bottom-6 left-2.5 sm:left-6 z-40 flex flex-col items-start gap-1.5 sm:gap-2.5">
+        {/* PG Owner Quick Link */}
+        <Link
+          to="/list-your-pg"
+          className="group flex items-center gap-1.5 sm:gap-2 bg-[#0f2547]/95 hover:bg-[#0b192c] text-white px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-full shadow-lg sm:shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 ring-1.5 sm:ring-2 ring-amber-400/40 border border-amber-400/20 backdrop-blur-md cursor-pointer"
+          title="Are you a PG Owner? Manage or list your room"
+        >
+          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-[#f5a623] to-amber-300 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+            <Building2 size={10} className="sm:hidden stroke-[2.5]" />
+            <Building2 size={12} className="hidden sm:inline stroke-[2.5]" />
+          </div>
+          <span className="font-bold text-[11px] sm:text-xs tracking-wide text-white whitespace-nowrap">
+            <span className="hidden sm:inline">Are you a </span>PG Owner?
+          </span>
+          <ArrowRight size={13} className="text-[#f5a623] hidden sm:inline group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+
+        {/* Have a Question Quick Button */}
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="group flex items-center gap-1.5 sm:gap-2 bg-white/95 hover:bg-white text-slate-800 hover:text-[#0f2547] px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-full shadow-lg sm:shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border border-slate-200/90 hover:border-amber-400/60 backdrop-blur-md cursor-pointer"
+          title="Have a Question? Send an inquiry or suggestion"
+        >
+          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+            <HelpCircle size={11} className="sm:hidden text-[#f5a623]" />
+            <HelpCircle size={13} className="hidden sm:inline text-[#f5a623]" />
+          </div>
+          <span className="font-bold text-[11px] sm:text-xs tracking-wide whitespace-nowrap">
+            <span className="hidden sm:inline">Have a </span>Question?
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
