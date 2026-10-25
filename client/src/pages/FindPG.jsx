@@ -10,6 +10,7 @@ import {
   MapPin,
   ShieldCheck,
   ShieldAlert,
+  Languages,
   LayoutGrid,
   List,
   Check,
@@ -79,10 +80,22 @@ const normalizeLocation = (loc) => {
 // 100% Real prompts matched directly to existing inventory in Sikkim
 const REAL_QUICK_PROMPTS = [
   {
+    query: 'Rooms & PG near ICFAI University with food',
+    label: 'PG near ICFAI University',
+    icon: '🎓',
+    badge: 'ICFAI • Food',
+  },
+  {
     query: 'Single room in Tadong with WiFi',
     label: 'Single Room in Tadong',
     icon: '🛏️',
     badge: '₹6k • WiFi',
+  },
+  {
+    query: 'Tadong me boys PG khana aur wifi ke sath',
+    label: 'Boys PG (हिंदी / Hinglish)',
+    icon: '🇮🇳',
+    badge: 'AI Search',
   },
   {
     query: 'Girls PG with Food in Gangtok',
@@ -537,12 +550,111 @@ export default function FindPG() {
             <span className="text-emerald-400 font-bold">Zero Brokerage</span>
           </div>
 
-          <h1 className="text-lg sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-1 sm:mb-2">
+          <h1 className="text-lg sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-1.5 sm:mb-2">
             Find Your Ideal PG in <span className="text-[#0f2547]">Sikkim</span> 🏡
           </h1>
-          <p className="hidden sm:block text-slate-600 text-xs sm:text-sm max-w-2xl mx-auto mb-4 leading-relaxed">
-            Search physically verified student accommodations & paying guests across Gangtok, Tadong, and Sikkim campuses with direct owner contact.
-          </p>
+
+          {/* AI Search Multi-Language Guide Banner */}
+          <div className="max-w-3xl mx-auto mt-1 sm:mt-2 mb-3 sm:mb-4 px-1">
+            <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500/10 via-white/95 to-indigo-500/10 border border-amber-300/80 p-2.5 sm:p-4 shadow-xs backdrop-blur-md transition-all hover:border-amber-400">
+              {/* Header row: AI Badge + Supported Languages */}
+              <div className="flex items-center justify-between gap-1.5 mb-2 flex-nowrap">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#0f2547] text-[#f5a623] text-[10px] sm:text-xs font-black shadow-2xs">
+                    <Sparkles size={11} className="animate-pulse shrink-0" />
+                    <span>AI Smart Search</span>
+                  </div>
+                  <span className="hidden sm:inline-block text-[11px] font-semibold text-slate-500">
+                    • Powered by Stay Aalaya AI
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100/90 text-amber-900 border border-amber-300/80 text-[10px] sm:text-[11px] font-bold shadow-2xs shrink-0">
+                  <Languages size={11} className="text-amber-800 shrink-0" />
+                  <span>English • हिंदी • Hinglish</span>
+                </div>
+              </div>
+
+              {/* How AI Search Works Explanation */}
+              <div className="text-left mb-2.5">
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                  Skip manual filter dropdowns! Ask naturally in <span className="text-amber-800 font-bold">English, हिंदी, or Hinglish</span> — our <strong className="text-[#0f2547] font-extrabold">Stay Aalaya AI</strong> instantly matches verified rooms near <span className="text-amber-800 font-semibold">ICFAI, SMIT</span>, colleges, nearby places & all Sikkim localities.
+                </p>
+              </div>
+
+              {/* 3 Quick How-It-Works Steps */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 mb-2.5 py-1.5 border-y border-amber-200/60 bg-white/70 rounded-xl px-2 sm:px-3 text-left">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] flex items-center justify-center shrink-0">1</span>
+                  <span><strong>Type naturally</strong> in English, हिंदी, or mix</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] flex items-center justify-center shrink-0">2</span>
+                  <span><strong>AI auto-filters</strong> college, rent, & food</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-900 font-extrabold text-[10px] flex items-center justify-center shrink-0">3</span>
+                  <span><strong>Instant verified stays</strong> matched live</span>
+                </div>
+              </div>
+
+              {/* Interactive example chips that user can tap - Horizontal swipeable row on mobile */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 scroll-smooth">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Try asking:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'ICFAI University ke pass PG with food';
+                    setSearchQuery(q);
+                    handleAiSearch(q);
+                  }}
+                  className="shrink-0 whitespace-nowrap text-[10px] sm:text-[11px] bg-white hover:bg-amber-50 text-slate-700 hover:text-[#0f2547] font-semibold px-2.5 py-1 rounded-full border border-slate-200/90 hover:border-amber-300 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Click to search near ICFAI University"
+                >
+                  <span className="text-xs">🎓</span>
+                  <span>"ICFAI University ke pass PG with food"</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Tadong me boys PG under 7000 with wifi';
+                    setSearchQuery(q);
+                    handleAiSearch(q);
+                  }}
+                  className="shrink-0 whitespace-nowrap text-[10px] sm:text-[11px] bg-white hover:bg-amber-50 text-slate-700 hover:text-[#0f2547] font-semibold px-2.5 py-1 rounded-full border border-slate-200/90 hover:border-amber-300 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Click to search in Hinglish"
+                >
+                  <span className="text-xs">🇮🇳</span>
+                  <span>"Tadong me boys PG under 7000 with wifi"</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Single room near SMIT with wifi';
+                    setSearchQuery(q);
+                    handleAiSearch(q);
+                  }}
+                  className="shrink-0 whitespace-nowrap text-[10px] sm:text-[11px] bg-white hover:bg-amber-50 text-slate-700 hover:text-[#0f2547] font-semibold px-2.5 py-1 rounded-full border border-slate-200/90 hover:border-amber-300 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Click to search in English"
+                >
+                  <span className="text-xs">🇬🇧</span>
+                  <span>"Single room near SMIT with wifi"</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Girls PG in 5th Mile with winter geyser';
+                    setSearchQuery(q);
+                    handleAiSearch(q);
+                  }}
+                  className="shrink-0 whitespace-nowrap text-[10px] sm:text-[11px] bg-white hover:bg-amber-50 text-slate-700 hover:text-[#0f2547] font-semibold px-2.5 py-1 rounded-full border border-slate-200/90 hover:border-amber-300 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Click to search girls PG with geyser"
+                >
+                  <span className="text-xs">🌸</span>
+                  <span>"Girls PG 5th Mile with geyser"</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* Elevated Search Container - Responsive Layout (Clean 2-tier on Mobile, Single-Row on Desktop) */}
           <div className="relative group max-w-3xl mx-auto mt-1 sm:mt-0">
@@ -604,7 +716,7 @@ export default function FindPG() {
                     onClick={() => handleAiSearch()}
                     disabled={!searchQuery.trim() || isAiSearching}
                     className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold text-[#f5a623] bg-[#0f2547] hover:bg-[#0b192c] border border-amber-400/40 shadow-xs active:scale-95 disabled:opacity-50 transition-all shrink-0 cursor-pointer"
-                    title="Smart Search with Gemini AI"
+                    title="Smart Search with Stay Aalaya AI"
                   >
                     {isAiSearching ? (
                       <RefreshCw size={13} className="animate-spin text-[#f5a623]" />

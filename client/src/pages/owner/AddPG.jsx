@@ -463,7 +463,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
                   <div className="flex items-center gap-2">
                     <Sparkles size={18} className="text-primary-600 shrink-0" />
                     <h4 className="text-sm font-bold text-slate-900">AI Description Generator</h4>
-                    <span className="text-[10px] font-bold bg-[#0f2547] text-white px-2 py-0.5 rounded-full">Gemini AI</span>
+                    <span className="text-[10px] font-bold bg-[#0f2547] text-[#f5a623] px-2 py-0.5 rounded-full border border-amber-400/30">Stay Aalaya AI</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">
                     Now that you&apos;ve filled all the information above (Title, Rent, Location, Room Type, Amenities, Rules, and Contact), click <strong>Generate with AI</strong> to synthesize everything into a captivating, professional description.
@@ -476,7 +476,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-primary-700 hover:from-primary-900 hover:to-primary-800 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-60 shrink-0 cursor-pointer"
                 >
                   <Sparkles size={15} className={isGeneratingAiDesc ? "animate-spin text-amber-300" : "text-amber-300"} />
-                  {isGeneratingAiDesc ? "Crafting with Gemini..." : "✨ Generate with AI"}
+                  {isGeneratingAiDesc ? "Crafting with Stay Aalaya AI..." : "✨ Generate with AI"}
                 </button>
               </div>
             </div>
@@ -492,7 +492,7 @@ export default function AddPG({ editMode = false, existingPG = null }) {
                   minLength: { value: 50, message: 'At least 50 characters' }
                 })}
                 className="input-field resize-y font-normal"
-                placeholder="Click '✨ Generate with AI' above to let Gemini craft an engaging description from your property details, or type your own!"
+                placeholder="Click '✨ Generate with AI' above to let Stay Aalaya AI craft an engaging description from your property details, or type your own!"
               />
               {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
               <p className="text-xs text-slate-500 mt-1">

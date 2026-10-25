@@ -427,7 +427,7 @@ export default function PGDetails() {
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
                       <RefreshCw size={13} className="animate-spin text-primary-600" />
-                      Analyzing PG amenities & location with Gemini AI...
+                      Analyzing PG amenities & location with Stay Aalaya AI...
                     </div>
                   )}
                 </div>

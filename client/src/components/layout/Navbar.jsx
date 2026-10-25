@@ -17,6 +17,7 @@ import {
   Globe,
   Plus,
   LogIn,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useData } from "../../hooks/useData";
@@ -220,11 +221,16 @@ export default function Navbar() {
                 <span className="whitespace-nowrap">About Us</span>
               </Link>
               <Link to="/find-pg" className={getNavLinkClass("/find-pg")}>
-                <Building2
+                <Sparkles
                   size={15}
-                  className="text-[#f5a623]"
+                  className="text-[#f5a623] animate-pulse"
                 />
-                <span className="whitespace-nowrap">Explore PGs</span>
+                <span className="whitespace-nowrap flex items-center gap-1.5">
+                  <span>Find PG</span>
+                  <span className="bg-[#f5a623] text-[#0f2547] text-[9.5px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                    AI
+                  </span>
+                </span>
               </Link>
               <Link to="/list-your-pg" className={getNavLinkClass("/list-your-pg")}>
                 <Plus
@@ -673,7 +679,13 @@ export default function Navbar() {
                   <Info size={16} className="text-[#f5a623]" /> About Us
                 </Link>
                 <Link to="/find-pg" className={getNavLinkClass("/find-pg")}>
-                  <Building2 size={16} className="text-[#f5a623]" /> Explore PGs
+                  <Sparkles size={16} className="text-[#f5a623]" />
+                  <span className="flex items-center gap-1.5">
+                    <span>Find PG</span>
+                    <span className="bg-[#f5a623] text-[#0f2547] text-[9.5px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                      AI
+                    </span>
+                  </span>
                 </Link>
                 <Link
                   to="/list-your-pg"

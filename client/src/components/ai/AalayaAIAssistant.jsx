@@ -124,7 +124,7 @@ export default function AalayaAIAssistant() {
             setIsMinimized(false);
           }}
           className={`fixed ${
-            isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-3 sm:bottom-6'
+            isPGDetail ? 'bottom-10 sm:bottom-25' : 'bottom-7 sm:bottom-20'
           } right-3 sm:right-6 z-40 group flex items-center gap-1.5 sm:gap-2 bg-[#0f2547] hover:bg-[#0b192c] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-full shadow-xl hover:shadow-amber-500/10 hover:scale-105 active:scale-95 transition-all duration-300 ring-1 sm:ring-2 ring-amber-400/50`}
           aria-label="Open Aalaya AI Assistant"
         >
@@ -144,8 +144,8 @@ export default function AalayaAIAssistant() {
         <div
           className={`fixed z-50 transition-all duration-300 ${
             isMinimized
-              ? `${isPGDetail ? 'bottom-20 sm:bottom-6' : 'bottom-6'} right-4 sm:right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3`
-              : 'bottom-2 sm:bottom-6 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-[420px] max-h-[90vh] sm:max-h-[85vh] h-[560px] sm:h-[640px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden backdrop-blur-xl'
+              ? `${isPGDetail ? 'bottom-24 sm:bottom-10' : 'bottom-7 sm:bottom-10'} right-4 sm:right-6 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-3`
+              : 'bottom-4 sm:bottom-10 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-[420px] max-h-[90vh] sm:max-h-[85vh] h-[560px] sm:h-[640px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden backdrop-blur-xl'
           }`}
         >
           {/* Header */}
@@ -156,9 +156,9 @@ export default function AalayaAIAssistant() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm leading-none text-white">Aalaya AI</h3>
+                  <h3 className="font-bold text-sm leading-none text-white">Stay Aalaya AI</h3>
                   <span className="text-[10px] bg-amber-400/20 text-[#f5a623] px-2 py-0.5 rounded-full font-semibold border border-amber-400/30">
-                    Gemini 3.8
+                    Live
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 mt-0.5">Sikkim PG Matchmaker</p>

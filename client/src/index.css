@@ -7,6 +7,16 @@
     color-scheme: light;
   }
 
+  ::selection {
+    background-color: #f5a623;
+    color: #0f2547;
+  }
+
+  ::-moz-selection {
+    background-color: #f5a623;
+    color: #0f2547;
+  }
+
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;

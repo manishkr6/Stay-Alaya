@@ -14,6 +14,7 @@ import {
   Bed,
   Sliders,
   ChevronDown,
+  Languages,
   Zap,
   Utensils,
   Award,
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../hooks/useData';
+import { useAuth } from '../hooks/useAuth';
 import PGCard from '../components/ui/PGCard';
 
 const SIKKIM_LOCALITIES = [
@@ -60,13 +62,18 @@ const PROMPT_SUGGESTIONS = [
 
 const AI_INSTANT_PROMPTS = [
   { icon: '🎓', text: 'PG near ICFAI University under ₹7,000' },
-  { icon: '✨', text: 'Sunny room in Tadong under ₹7,000' },
-  { icon: '🌸', text: 'Girls PG in 5th Mile under ₹5,000' },
+  { icon: '🇮🇳', text: 'Tadong me boys PG under 7000 with food' },
   { icon: '🏫', text: 'Boys PG near SMIT Majitar under ₹8,000' },
+  { icon: '🌸', text: 'Girls PG in 5th Mile with winter geyser' },
   { icon: '🏔️', text: 'Mountain view Homestay near MG Marg' },
 ];
 
 const FAQ_ITEMS = [
+  {
+    question: 'How does Stay Aalaya’s AI Smart Search work?',
+    answer:
+      'Powered by Stay Aalaya AI, our smart search understands natural everyday language in English, हिंदी, and Hinglish. Instead of manually applying filter dropdowns, simply type or speak what you need (e.g. "ICFAI University ke pass boys PG under 7000 with food"). Our AI automatically detects your preferred campus, maximum budget, gender preference, and amenities to display verified matching rooms instantly.',
+  },
   {
     question: 'How do I book or reserve a PG room in Sikkim?',
     answer:
@@ -92,10 +99,11 @@ const FAQ_ITEMS = [
 
 export default function Home() {
   const { getApprovedPGs, reviews = [], users = [], pgs = [], createNotification } = useData();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // Search state
-  const [searchTab, setSearchTab] = useState('standard'); // 'standard' | 'ai'
+  // Search state — AI Smart Finder active by default
+  const [searchTab, setSearchTab] = useState('ai'); // 'standard' | 'ai'
   const [selectedLocality, setSelectedLocality] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [maxBudget, setMaxBudget] = useState(15000);
@@ -172,6 +180,33 @@ export default function Home() {
     const unique = new Set(list);
     return unique.size || 1;
   }, [approvedPGs]);
+
+  // Count real students strictly from live database figures (registered students + active student reviewers)
+  const realStudentsCount = useMemo(() => {
+    // 1. Gather all registered student/tenant profiles
+    const studentProfiles = (users || []).filter(
+      (u) => u.role === 'student' || u.role === 'user' || !u.role
+    );
+    const studentIds = new Set(studentProfiles.map((u) => String(u.id)));
+
+    // 2. If current logged-in user is a student, ensure they are counted
+    if (currentUser?.id && (currentUser.role === 'student' || currentUser.role === 'user' || !currentUser.role)) {
+      studentIds.add(String(currentUser.id));
+    }
+
+    // 3. Count unique student reviewers from the reviews table
+    (reviews || []).forEach((r) => {
+      const uid = String(r.userId || r.user_id || '');
+      if (uid && !studentIds.has(uid)) {
+        const u = (users || []).find((x) => String(x.id) === uid);
+        if (!u || u.role === 'student' || u.role === 'user' || !u.role) {
+          studentIds.add(uid);
+        }
+      }
+    });
+
+    return studentIds.size;
+  }, [users, reviews, currentUser]);
 
   // Filter listings for the Featured Residences section strictly using real data
   const filteredPGs = useMemo(() => {
@@ -279,11 +314,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans selection:bg-[#f5a623] selection:text-[#0f2547]">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans">
       {/* ========================================================
           1. HERO SECTION (Screenshot 1: Himalayan Sunset Mountain)
           ======================================================== */}
-      <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 overflow-hidden min-h-[90vh] flex flex-col justify-center">
+      <section className="relative pt-24 pb-12 sm:pt-36 sm:pb-24 overflow-hidden min-h-0 sm:min-h-[88vh] flex flex-col justify-center">
         {/* Mountain Background Photo with Himalayan Atmosphere */}
         <div className="absolute inset-0 z-0">
           <img
@@ -296,88 +331,194 @@ export default function Home() {
         </div>
 
         {/* Hero Content Container */}
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 text-center">
+        <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 text-center w-full">
           {/* Top Tagline Pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs text-slate-200 shadow-md mb-6">
-            <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse" />
-            <span className="font-semibold text-white">#1 AI-Powered PG & Room Finder in</span>
-            {/* <span className="text-slate-400">•</span> */}
-            <span className="text-[#f5a623] font-bold">Sikkim</span>
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-[10.5px] sm:text-xs text-slate-200 shadow-md mb-3 sm:mb-5 max-w-[96%] sm:max-w-none">
+            <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse shrink-0" />
+            <span className="font-semibold text-white truncate">#1 AI-Powered Stay Finder in</span>
+            <span className="text-[#f5a623] font-bold shrink-0">Sikkim</span>
+            <span className="text-slate-500 hidden sm:inline">•</span>
+            <span className="text-amber-300 font-medium hidden sm:inline">Powered by Stay Aalaya AI</span>
           </div>
 
           {/* Hero Headline */}
           <h1
-            className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]"
+            className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6 sm:mb-8 md:mb-10 leading-[1.2] sm:leading-[1.15]"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            Find Your Perfect Rooms & PGs in <br className="hidden sm:inline" />
-            <span className="text-[#f5a623]">Sikkim</span>
+            Find Your Ideal PG & Room in 
+            <span className="text-[#f5a623]"> Sikkim</span>  <br className="hidden sm:inline" />with <span className="text-[#f5a623]"> Stay Aalaya </span>AI 🏡
           </h1>
 
-          {/* Centered Subtitle Translucent Card */}
-          <div className="max-w-2xl mx-auto bg-slate-950/40 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5 mb-8 text-slate-200 text-[12px] sm:text-[15px] leading-relaxed shadow-lg">
-            Discover verified paying guest accommodations and rooms across{' '}
-            <strong className="text-white">Gangtok, Tadong, Deorali, Majitar, and Namchi</strong>. Connect
-            directly with owners—zero brokerage.
-          </div>
-
-          {/* Frosted Dark Navy Search Console Box */}
-          <div className="max-w-4xl mx-auto bg-[#4c5364]/50 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-4 sm:p-6 shadow-2xl text-left">
-            {/* Console Header: Tabs + Live Better Tag */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSearchTab('standard')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                    searchTab === 'standard'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-white hover:text-white bg-slate-800/80 hover:bg-slate-700/80'
-                  }`}
-                >
-                  <Sliders size={14} className="text-[#f5a623]" />
-                  <span>Standard Search</span>
-                </button>
-
+          {/* Master AI Search Console Container - Clean, Unified, Interactive UI */}
+          <div className="max-w-4xl mx-auto bg-slate-950/80 backdrop-blur-2xl border border-white/15 hover:border-amber-400/40 rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 shadow-2xl transition-all text-left w-full">
+            {/* Console Header: Tabs (AI Smart Search vs Manual Filters) + Multi-Language Badge */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-3.5">
+              {/* Tab Controls - 50/50 split on mobile */}
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 bg-slate-900/90 p-1 rounded-xl sm:rounded-2xl border border-white/10 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setSearchTab('ai')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     searchTab === 'ai'
-                      ? 'bg-[#f5a623] text-slate-950 shadow-sm'
-                      : 'text-white bg-slate-800/80 hover:bg-slate-700/80'
+                      ? 'bg-[#f5a623] text-slate-950 shadow-md'
+                      : 'text-slate-300 hover:text-white'
                   }`}
                 >
-                  <Sparkles size={14} className={searchTab === 'ai' ? 'text-slate-950 stroke-[2.5]' : 'text-white'} />
-                  <span>AI Smart Finder</span>
+                  <Sparkles size={13} className={searchTab === 'ai' ? 'text-slate-950 stroke-[2.5]' : 'text-[#f5a623]'} />
+                  <span>AI Finder</span>
+                  <span className={`text-[9px] font-black uppercase px-1 py-0.2 rounded-full ${searchTab === 'ai' ? 'bg-slate-950 text-[#f5a623]' : 'bg-[#f5a623]/20 text-[#f5a623]'}`}>
+                    AI
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSearchTab('standard')}
+                  className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    searchTab === 'standard'
+                      ? 'bg-white text-slate-900 shadow-md'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Sliders size={13} className="text-[#f5a623]" />
+                  <span>Filters</span>
                 </button>
               </div>
 
-              {/* Tagline right */}
-              <div className="text-[10px] sm:text-[11px] font-bold tracking-wide sm:tracking-wider uppercase text-slate-300 flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 w-full sm:w-auto pt-0.5 sm:pt-0 whitespace-nowrap">
-                <span className="flex items-center gap-1 sm:gap-1.5 text-slate-300 shrink-0">
-                  <Search size={11} className="text-slate-400 stroke-[2.5]" /> FIND BETTER
-                </span>
-                <span className="text-slate-500/80">•</span>
-                <span className="flex items-center gap-1 sm:gap-1.5 text-[#f5a623] shrink-0">
-                  <Bed size={12} className="text-[#f5a623] stroke-[2.5]" /> STAY BETTER
-                </span>
-                <span className="text-slate-500/80">•</span>
-                <span className="flex items-center gap-1 sm:gap-1.5 text-slate-300 shrink-0">
-                  <span className="text-red-500 text-xs leading-none">❤️</span> LIVE BETTER
-                </span>
+              {/* Supported Languages Pill on Right */}
+              <div className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/80 text-amber-300 border border-amber-400/30 text-[10px] sm:text-xs font-semibold shadow-2xs self-center sm:self-auto shrink-0">
+                <Languages size={12} className="text-[#f5a623] shrink-0" />
+                <span>English • हिंदी • Hinglish</span>
               </div>
             </div>
 
-            {/* Standard Search Form */}
-            {searchTab === 'standard' ? (
+            {/* TAB 1: AI SMART FINDER (Clean, Interactive & Spacious) */}
+            {searchTab === 'ai' ? (
+              <div className="space-y-2.5 sm:space-y-3">
+                {/* AI Smart Finder Explanation */}
+                <p className="text-[11px] sm:text-xs md:text-sm text-slate-300 leading-relaxed font-normal">
+                  Skip manual filter dropdowns! Ask naturally in <span className="text-amber-300 font-semibold">English, हिंदी, or Hinglish</span> — our <strong className="text-white font-bold">Stay Aalaya AI</strong> instantly matches verified rooms near <span className="text-amber-300 font-semibold">ICFAI, SMIT</span>, colleges, nearby places & all Sikkim localities.
+                </p>
+
+                {/* 1. Primary AI Input Form */}
+                <form onSubmit={handleSearchSubmit} className="w-full">
+                  <div className="bg-white rounded-2xl p-1.5 sm:p-2.5 shadow-xl border-2 border-amber-300/80 focus-within:border-[#f5a623] focus-within:ring-4 focus-within:ring-amber-400/20 flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5 transition-all">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 w-full px-2 sm:px-3 py-1 sm:py-0">
+                      <Sparkles size={18} className="text-[#f5a623] shrink-0 animate-pulse" />
+                      <input
+                        type="text"
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="Type naturally: 'ICFAI pass PG under 7000'..."
+                        className="w-full bg-transparent text-slate-900 text-xs sm:text-sm md:text-base font-semibold placeholder:text-slate-400 placeholder:font-normal outline-none border-0"
+                      />
+                      {aiPrompt && (
+                        <button
+                          type="button"
+                          onClick={() => setAiPrompt('')}
+                          className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded-full hover:bg-slate-100 transition-colors shrink-0"
+                          title="Clear input"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full sm:w-auto shrink-0 bg-[#0f2547] hover:bg-[#16335d] active:scale-95 text-[#f5a623] font-black text-xs sm:text-sm py-2.5 sm:py-3 px-5 sm:px-7 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap"
+                    >
+                      <span>Match Stays with AI</span>
+                      <ArrowRight size={15} className="text-[#f5a623] stroke-[2.5]" />
+                    </button>
+                  </div>
+                </form>
+
+                {/* 2. Sleek 3-Step Micro Strip (Single row on mobile & desktop) */}
+                <div className="grid grid-cols-3 gap-1 sm:gap-2 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl bg-slate-900/70 border border-white/10 text-slate-300 text-[9px] sm:text-xs text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2">
+                    <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                    <span className="truncate"><strong>Type</strong> naturally</span>
+                  </div>
+                  <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 border-x border-white/10 sm:border-0 px-1 sm:px-0">
+                    <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                    <span className="truncate"><strong>AI</strong> auto-filters</span>
+                  </div>
+                  <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2">
+                    <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/40 text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                    <span className="truncate"><strong>Instant</strong> verified stays</span>
+                  </div>
+                </div>
+
+                {/* 3. Interactive Clickable Example Prompts */}
+                <div className="pt-0.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 scroll-smooth -mx-1 px-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                    Try:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = 'ICFAI University ke pass PG with food';
+                      setAiPrompt(q);
+                      navigate(`/find-pg?query=${encodeURIComponent(q)}`);
+                    }}
+                    className="shrink-0 text-[10px] sm:text-xs bg-slate-900/90 hover:bg-[#0f2547] text-slate-200 hover:text-amber-300 font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/15 hover:border-amber-400 shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                    title="Click to search near ICFAI University"
+                  >
+                    <span>🎓</span>
+                    <span>"ICFAI University ke pass PG with food"</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = 'Tadong me boys PG under 7000 with wifi';
+                      setAiPrompt(q);
+                      navigate(`/find-pg?query=${encodeURIComponent(q)}`);
+                    }}
+                    className="shrink-0 text-[10px] sm:text-xs bg-slate-900/90 hover:bg-[#0f2547] text-slate-200 hover:text-amber-300 font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/15 hover:border-amber-400 shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                    title="Click to search in Hinglish"
+                  >
+                    <span>🇮🇳</span>
+                    <span>"Tadong me boys PG under 7000 with wifi"</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = 'Single room near SMIT with wifi';
+                      setAiPrompt(q);
+                      navigate(`/find-pg?query=${encodeURIComponent(q)}`);
+                    }}
+                    className="shrink-0 text-[10px] sm:text-xs bg-slate-900/90 hover:bg-[#0f2547] text-slate-200 hover:text-amber-300 font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/15 hover:border-amber-400 shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                    title="Click to search near SMIT"
+                  >
+                    <span>🏫</span>
+                    <span>"Single room near SMIT with wifi"</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = 'Girls PG in 5th Mile with winter geyser';
+                      setAiPrompt(q);
+                      navigate(`/find-pg?query=${encodeURIComponent(q)}`);
+                    }}
+                    className="shrink-0 text-[10px] sm:text-xs bg-slate-900/90 hover:bg-[#0f2547] text-slate-200 hover:text-amber-300 font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/15 hover:border-amber-400 shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                    title="Click to search girls PG with geyser"
+                  >
+                    <span>🌸</span>
+                    <span>"Girls PG 5th Mile with geyser"</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: MANUAL FILTERS (Traditional Dropdowns) */
               <form onSubmit={handleSearchSubmit} className="w-full">
-                <div className="bg-white rounded-3xl p-2.5 sm:p-3 shadow-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.15fr)_minmax(0,1fr)_auto] gap-2.5 sm:gap-3 items-center w-full">
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.15fr)_minmax(0,1fr)_auto] gap-2 sm:gap-3 items-center w-full">
                   {/* Segment 1: Sikkim Locality */}
-                  <div className="relative border border-slate-200/90 rounded-2xl px-3 py-2.5 flex items-center gap-2 bg-white hover:border-slate-300 transition-colors min-w-0">
-                    <MapPin size={20} className="text-[#f5a623] shrink-0 stroke-2" />
+                  <div className="relative border border-slate-200/90 rounded-xl sm:rounded-2xl px-3 py-2 sm:py-2.5 flex items-center gap-2 bg-white hover:border-slate-300 transition-colors min-w-0">
+                    <MapPin size={18} className="text-[#f5a623] shrink-0 stroke-2" />
                     <div className="flex-1 min-w-0 pr-1">
-                      <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 leading-none mb-1">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400 leading-none mb-1">
                         SIKKIM LOCALITY
                       </span>
                       <span className="block text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight">
@@ -401,10 +542,10 @@ export default function Home() {
                   </div>
 
                   {/* Segment 2: Residence Type */}
-                  <div className="relative border border-slate-200/90 rounded-2xl px-3 py-2.5 flex items-center gap-2 bg-white hover:border-slate-300 transition-colors min-w-0">
-                    <Bed size={20} className="text-[#f5a623] shrink-0 stroke-2" />
+                  <div className="relative border border-slate-200/90 rounded-xl sm:rounded-2xl px-3 py-2 sm:py-2.5 flex items-center gap-2 bg-white hover:border-slate-300 transition-colors min-w-0">
+                    <Bed size={18} className="text-[#f5a623] shrink-0 stroke-2" />
                     <div className="flex-1 min-w-0 pr-1">
-                      <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 leading-none mb-1">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400 leading-none mb-1">
                         RESIDENCE TYPE
                       </span>
                       <span className="block text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight">
@@ -429,7 +570,7 @@ export default function Home() {
 
                   {/* Segment 3: Max Budget Slider */}
                   <div className="px-2 py-1 flex flex-col justify-center min-w-0">
-                    <div className="flex items-center justify-between text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400">
+                    <div className="flex items-center justify-between text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
                       <span>MAX BUDGET</span>
                       <span className="text-xs sm:text-sm font-extrabold text-[#0f2547]">
                         {Number(maxBudget) >= 15000 ? 'Any Budget' : `₹${Number(maxBudget).toLocaleString('en-IN')}/mo`}
@@ -442,7 +583,7 @@ export default function Home() {
                       step="500"
                       value={maxBudget}
                       onChange={(e) => setMaxBudget(Number(e.target.value))}
-                      className="aalaya-budget-slider cursor-pointer mt-1.5 w-full"
+                      className="aalaya-budget-slider cursor-pointer mt-1 sm:mt-1.5 w-full"
                       style={{
                         background: `linear-gradient(to right, #f5a623 0%, #f5a623 ${((maxBudget - 3500) / (15000 - 3500)) * 100}%, #334155 ${((maxBudget - 3500) / (15000 - 3500)) * 100}%, #334155 100%)`,
                       }}
@@ -453,95 +594,45 @@ export default function Home() {
                   <div className="w-full lg:w-auto shrink-0 flex items-center justify-end">
                     <button
                       type="submit"
-                      className="w-full lg:w-auto shrink-0 bg-[#f5a623] hover:bg-[#e09618] active:scale-95 text-slate-950 font-extrabold text-sm sm:text-base py-3 sm:py-3.5 px-5 sm:px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+                      className="w-full lg:w-auto shrink-0 bg-[#f5a623] hover:bg-[#e09618] active:scale-95 text-slate-950 font-extrabold text-xs sm:text-base py-2.5 sm:py-3.5 px-5 sm:px-6 rounded-xl sm:rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                     >
-                      <Search size={18} className="stroke-[2.5]" />
+                      <Search size={16} className="stroke-[2.5]" />
                       <span>Search</span>
                     </button>
-                  </div>
-                </div>
-              </form>
-            ) : (
-              /* AI Smart Finder Tab (Matches Screenshot Exactly) */
-              <form onSubmit={handleSearchSubmit} className="w-full">
-                <div className="bg-white rounded-3xl p-3.5 sm:p-4.5 shadow-xl w-full">
-                  {/* Row 1: Search Input & Match Stays Button */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
-                    {/* Input with Amber Border */}
-                    <div className="flex-1 w-full flex items-center gap-3 border border-amber-300 rounded-2xl px-4 py-3 sm:py-3.5 bg-white shadow-2xs focus-within:border-[#f5a623] focus-within:ring-2 focus-within:ring-amber-200/50 transition-all">
-                      <Sparkles size={22} className="text-[#f5a623] shrink-0" />
-                      <input
-                        type="text"
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder="Try: 'Rooms near ICFAI University under ₹6,000 with Wi-Fi and Geyser'..."
-                        className="w-full bg-transparent text-slate-800 text-xs sm:text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal outline-none border-0 ring-0 focus:ring-0"
-                      />
-                    </div>
-
-                    {/* Dark Navy Button with Match Stays and Arrow */}
-                    <button
-                      type="submit"
-                      className="w-full sm:w-auto shrink-0 bg-[#0f2547] hover:bg-[#16335d] active:scale-95 text-[#f5a623] font-extrabold text-sm sm:text-base py-3 sm:py-3.5 px-6 sm:px-7 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
-                    >
-                      <span>Match Stays</span>
-                      <ArrowRight size={18} className="text-[#f5a623] stroke-[2.5]" />
-                    </button>
-                  </div>
-
-                  {/* Row 2: Instant Prompts */}
-                  <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-1">
-                    <span className="text-xs font-bold text-slate-400 shrink-0 mr-1">
-                      Instant Prompts:
-                    </span>
-                    {AI_INSTANT_PROMPTS.map((prompt, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setAiPrompt(prompt.text);
-                          navigate(`/find-pg?query=${encodeURIComponent(prompt.text)}`);
-                        }}
-                        className="border border-amber-200/90 bg-amber-50/40 hover:bg-amber-100/70 hover:border-amber-400 text-slate-800 font-bold text-xs rounded-full px-3.5 py-1.5 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                      >
-                        <span className="text-sm leading-none">{prompt.icon}</span>
-                        <span>{prompt.text}</span>
-                      </button>
-                    ))}
                   </div>
                 </div>
               </form>
             )}
 
             {/* Bottom 3 Stats Banner (Real Database Figures) */}
-            <div className="grid grid-cols-3 gap-3 pt-6 mt-6 items-center text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3.5 sm:pt-5 mt-3.5 sm:mt-5 border-t border-white/10 items-center text-center">
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1.5 text-white font-extrabold text-lg sm:text-2xl">
-                  <ShieldCheck size={22} className="text-[#f5a623]" />
+                <div className="flex items-center gap-1 text-white font-extrabold text-sm sm:text-2xl">
+                  <ShieldCheck size={16} className="text-[#f5a623] sm:w-5 sm:h-5 shrink-0" />
                   <span>{approvedPGs.length > 0 ? `${approvedPGs.length}+` : '100%'}</span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
+                <span className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                   VERIFIED PGS
                 </span>
               </div>
 
-              <div className="flex flex-col items-center border border-slate-700/60 rounded-2xl py-2.5 px-3 sm:px-6 bg-slate-800/20 backdrop-blur-sm">
-                <div className="flex items-center gap-1.5 text-white font-extrabold text-lg sm:text-2xl">
-                  <Users size={22} className="text-[#f5a623]" />
-                  <span>1,000+</span>
+              <div className="flex flex-col items-center border-x border-white/10 px-1 sm:px-6">
+                <div className="flex items-center gap-1 text-white font-extrabold text-sm sm:text-2xl">
+                  <Users size={16} className="text-[#f5a623] sm:w-5 sm:h-5 shrink-0" />
+                  <span>{realStudentsCount > 0 ? `${realStudentsCount}+` : '0'}</span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
+                <span className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                   HAPPY STUDENTS
                 </span>
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1.5 text-white font-extrabold text-lg sm:text-2xl">
-                  <MapPin size={22} className="text-[#f5a623]" />
+                <div className="flex items-center gap-1 text-white font-extrabold text-sm sm:text-2xl">
+                  <MapPin size={16} className="text-[#f5a623] sm:w-5 sm:h-5 shrink-0" />
                   <span>{realLocalitiesCount > 1 ? `${realLocalitiesCount}+` : realLocalitiesCount}</span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
-                  SIKKIM LOCALITIES
+                <span className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                  LOCALITIES
                 </span>
               </div>
             </div>
@@ -647,21 +738,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 4-Card Responsive Residences Grid with View Details Button */}
+        {/* 4-Card Responsive Residences Grid */}
         {displayFeaturedPGs.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {displayFeaturedPGs.map((pg) => (
-              <div key={pg.id} className="flex flex-col justify-between h-full">
-                <PGCard pg={pg} includeMess={includeMess} />
-                <button
-                  type="button"
-                  onClick={() => navigate(`/pg/${pg.id}`)}
-                  className="mt-3 w-full bg-[#0f2547] hover:bg-[#16335d] text-[#f5a623] hover:text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 group cursor-pointer"
-                >
-                  <span>View Details</span>
-                  <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
+              <PGCard key={pg.id} pg={pg} includeMess={includeMess} />
             ))}
           </div>
         ) : (
@@ -886,7 +967,7 @@ export default function Home() {
             {/* Step Icon with orange number badge */}
             <div className="relative mb-5">
               <div className="w-16 h-16 rounded-full bg-[#0f2547] text-[#f5a623] flex items-center justify-center shadow-md">
-                <Search size={26} className="stroke-[2.5]" />
+                <Sparkles size={26} className="text-[#f5a623] stroke-[2.2]" />
               </div>
               <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#f5a623] text-slate-950 font-black text-xs flex items-center justify-center border-2 border-white">
                 01
@@ -896,13 +977,14 @@ export default function Home() {
               className="text-xl font-bold text-[#0f2547] mb-2"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              Search
+              AI Smart Search
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-6">
-              Filter by Sikkim locality, college walk time, sunlight exposure, or use AI Smart Search.
+              Ask naturally in English, हिंदी, or Hinglish. Our Stay Aalaya AI auto-detects colleges, nearby places, rent budget, & room amenities.
             </p>
-            <span className="mt-auto bg-[#0f2547] text-white text-[11px] font-bold px-4 py-1.5 rounded-full">
-              100% Free Search
+            <span className="mt-auto bg-[#0f2547] text-[#f5a623] text-[11px] font-bold px-4 py-1.5 rounded-full flex items-center gap-1">
+              <Sparkles size={11} className="text-[#f5a623]" />
+              <span>Stay Aalaya AI Search</span>
             </span>
           </div>
 
@@ -975,32 +1057,66 @@ export default function Home() {
             <span className="text-[10.5px] font-extrabold uppercase tracking-widest text-[#f5a623] flex items-center gap-1.5">
               <Sparkles size={13} />
               {activeStep === 1
-                ? 'STEP 01 LIVE PREVIEW'
+                ? 'STEP 01: AI SMART SEARCH & TERRAIN MATCHING'
                 : activeStep === 2
-                ? 'STEP 02 LIVE PREVIEW'
-                : 'STEP 03 LIVE PREVIEW'}
+                ? 'STEP 02: DIRECT HOST CONNECT'
+                : 'STEP 03: 14-POINT PRE-MOVE IN CHECK'}
             </span>
             <h3
               className="text-xl sm:text-2xl font-bold text-white leading-tight"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              {activeStep === 1 && 'Interactive Sikkim Terrain & Amenity Filters'}
+              {activeStep === 1 && 'Stay Aalaya AI Natural Language Stay Search'}
               {activeStep === 2 && 'Direct WhatsApp & Call Connect With Verified Hosts'}
               {activeStep === 3 && '14-Point Pre-Move In Guarantee & Room Handover'}
             </h3>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-200 pt-1">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
-                <span>Filter by walking time to nearest Taxi Stand (Zero-Stair Access badge)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
-                <span>Toggle "Include Mess Cost" to see true all-inclusive monthly outgo</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
-                <span>Check South-Facing Sunlight & Winter Geyser readiness upfront</span>
-              </li>
+              {activeStep === 1 ? (
+                <>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Search in plain English, हिंदी, or Hinglish (e.g. "Tadong me boys PG under 7000 with wifi")</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Auto-detects colleges (ICFAI, SMIT, SRM, Manipal), nearby places & amenities (food, geyser)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Instant matching with 100% physically verified stays & ₹0 brokerage</span>
+                  </li>
+                </>
+              ) : activeStep === 2 ? (
+                <>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>One-tap WhatsApp chat & phone connect with verified local Sikkimese hosts</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Ask about mess menu (veg/non-veg), curfew rules, and live video tours</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>No agent middlemen, zero hidden commissions — pay rent directly to homeowner</span>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>14-point physical verification: hot water geyser, Wi-Fi speed, and road/taxi access</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Zero surprise stair climbs: exact walk time and zero-stair access badges</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#f5a623] shrink-0" />
+                    <span>Move into your hill accommodation with total peace of mind</span>
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -1040,8 +1156,9 @@ export default function Home() {
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
               Finding a safe, sunlit room with reliable hot water and Wi-Fi in hilly terrain shouldn't require
               walking up hundreds of stairs or paying hefty broker commissions.{' '}
-              <strong className="text-slate-900">Stay Aalaya</strong> connects students at ICFAI University, SRM, SMIT, Manipal,
-              and working professionals directly with verified Sikkimese homeowners.
+              <strong className="text-slate-900">Stay Aalaya</strong> is Sikkim's first AI-powered room and PG finder.
+              Powered by Stay Aalaya AI, students at ICFAI University, SRM, SMIT, Manipal,
+              and working professionals can search in English, हिंदी, or Hinglish to match verified Sikkimese homes with zero brokerage.
             </p>
 
             <div className="flex items-center gap-3 pt-2 flex-wrap">
@@ -1589,7 +1706,7 @@ export default function Home() {
       )}
 
       {/* Floating Action Dock (Opposite to AI bot at bottom-left, stacked up and down) */}
-      <div className="fixed bottom-3 sm:bottom-6 left-2.5 sm:left-6 z-40 flex flex-col items-start gap-1.5 sm:gap-2.5">
+      <div className="fixed bottom-7 sm:bottom-10 left-3 sm:left-6 z-40 flex flex-col items-start gap-1.5 sm:gap-2.5">
         {/* PG Owner Quick Link */}
         <Link
           to="/list-your-pg"

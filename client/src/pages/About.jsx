@@ -388,7 +388,7 @@ export default function About() {
       github: 'https://github.com/manishkr6',
       linkedin: 'https://www.linkedin.com/in/manish-kumar-baitha-771120224/',
       email: 'manishkr5487@gmail.com',
-      skills: ['React', 'Node.js', 'Vite', 'TailwindCSS', 'Gemini AI', 'Supabase'],
+      skills: ['React', 'Node.js', 'Vite', 'TailwindCSS', 'Stay Aalaya AI', 'Supabase'],
       accentColor: 'from-primary-600 to-cyan-600',
     },
     {

@@ -259,25 +259,37 @@ export function DataProvider({ children }) {
 
   const fetchApprovedPgsAndReviews = useCallback(async () => {
     try {
-      const { data: pgsData, error: pgsErr } = await supabase
-        .from('pg_listings')
-        .select('*, profiles(full_name, email, phone, avatar_url, kyc_doc_url, kyc_id_doc_url, kyc_status)')
-        .order('created_at', { ascending: false });
+      const [pgsRes, reviewsRes, profilesRes] = await Promise.all([
+        supabase
+          .from('pg_listings')
+          .select('*, profiles(full_name, email, phone, avatar_url, kyc_doc_url, kyc_id_doc_url, kyc_status)')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('reviews')
+          .select('*, profiles(full_name, avatar_url, kyc_doc_url, kyc_id_doc_url)')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false }),
+      ]);
 
-      if (pgsErr) throw pgsErr;
+      if (pgsRes.error) throw pgsRes.error;
 
       // Fetch actual real reviews
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('*, profiles(full_name, avatar_url, kyc_doc_url, kyc_id_doc_url)')
-        .order('created_at', { ascending: false });
-
-      const mappedReviews = (reviewsData || []).map(mapReview);
+      const mappedReviews = (reviewsRes.data || []).map(mapReview);
       reviewsRef.current = mappedReviews;
-      setReviews(mappedReviews);
+      if (reviewsRes.data) setReviews(mappedReviews);
+
+      // Fetch actual real student/community profiles
+      if (profilesRes.data) {
+        const mappedUsers = profilesRes.data.map(mapUser);
+        usersRef.current = mappedUsers;
+        setUsers(mappedUsers);
+      }
 
       // Compute totalReviews and averageRating strictly from real reviews in the database
-      const mappedPgs = (pgsData || []).map((pg) => {
+      const mappedPgs = (pgsRes.data || []).map((pg) => {
         const basePG = mapPG(pg);
         if (!basePG) return null;
         const matchingReviews = mappedReviews.filter((r) => String(r.pgId) === String(basePG.id));
@@ -297,7 +309,7 @@ export function DataProvider({ children }) {
     } catch (err) {
       console.warn('Failed to fetch PGs from Supabase:', err);
     }
-  }, [mapPG, mapReview]);
+  }, [mapPG, mapReview, mapUser]);
 
   const fetchOwnerPgs = useCallback(async () => {
     const user = currentUserRef.current;
@@ -855,6 +867,8 @@ export function DataProvider({ children }) {
           if (user?.role === 'admin') {
             await fetchAdminDataRef.current?.();
             await fetchNotificationsRef.current?.();
+          } else {
+            await fetchApprovedPgsAndReviewsRef.current?.();
           }
         }
       )
