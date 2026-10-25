@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -28,11 +28,14 @@ import {
   MessageSquare,
   Mail,
   Check,
+  Mic,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../hooks/useData';
 import { useAuth } from '../hooks/useAuth';
 import PGCard from '../components/ui/PGCard';
+import AalayaVoiceAssistant from '../components/ai/AalayaVoiceAssistant.jsx';
+
 
 const SIKKIM_LOCALITIES = [
   { id: '', label: 'All Sikkim (Gangtok, Namchi...)' },
@@ -108,6 +111,13 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState('');
   const [maxBudget, setMaxBudget] = useState(15000);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenVoice = () => setIsVoiceAssistantOpen(true);
+    window.addEventListener('open-aalaya-voice-assistant', handleOpenVoice);
+    return () => window.removeEventListener('open-aalaya-voice-assistant', handleOpenVoice);
+  }, []);
 
   // Curated Residences state
   const [activeCategory, setActiveCategory] = useState('All PGs');
@@ -388,10 +398,27 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Supported Languages Pill on Right */}
-              <div className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/80 text-amber-300 border border-amber-400/30 text-[10px] sm:text-xs font-semibold shadow-2xs self-center sm:self-auto shrink-0">
-                <Languages size={12} className="text-[#f5a623] shrink-0" />
-                <span>English • हिंदी • Hinglish</span>
+              {/* Voice Assistant Pill & Supported Languages */}
+              <div className="flex items-center gap-1.5 self-center sm:self-auto shrink-0 flex-wrap justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsVoiceAssistantOpen(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-amber-400/20 to-amber-500/25 hover:from-amber-500/35 hover:to-amber-400/35 text-amber-300 border border-amber-400/50 text-[10px] sm:text-xs font-black shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer group"
+                  title="Talk directly with Stay Aalaya AI Voice Assistant"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <Mic size={13} className="text-amber-300 group-hover:scale-110 transition-transform" />
+                  <span>Talk to Alaya Bot</span>
+                  <span className="text-[9px] bg-amber-400/20 text-amber-200 px-1 py-0.2 rounded font-black uppercase">Voice</span>
+                </button>
+
+                <div className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/80 text-amber-300 border border-amber-400/30 text-[10px] sm:text-xs font-semibold shadow-2xs">
+                  <Languages size={12} className="text-[#f5a623] shrink-0" />
+                  <span>English • हिंदी • Hinglish</span>
+                </div>
               </div>
             </div>
 
@@ -406,7 +433,7 @@ export default function Home() {
                 {/* 1. Primary AI Input Form */}
                 <form onSubmit={handleSearchSubmit} className="w-full">
                   <div className="bg-white rounded-2xl p-1.5 sm:p-2.5 shadow-xl border-2 border-amber-300/80 focus-within:border-[#f5a623] focus-within:ring-4 focus-within:ring-amber-400/20 flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5 transition-all">
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 w-full px-2 sm:px-3 py-1 sm:py-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 flex-1 w-full px-2 sm:px-3 py-1 sm:py-0">
                       <Sparkles size={18} className="text-[#f5a623] shrink-0 animate-pulse" />
                       <input
                         type="text"
@@ -426,6 +453,21 @@ export default function Home() {
                           ✕
                         </button>
                       )}
+
+                      {/* Microphone Voice Button inside input */}
+                      <button
+                        type="button"
+                        onClick={() => setIsVoiceAssistantOpen(true)}
+                        className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/15 to-amber-500/25 hover:from-amber-500/25 hover:to-amber-500/35 text-[#0f2547] border border-amber-400/60 hover:border-amber-500 shadow-xs flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0 group"
+                        title="Click to speak with Stay Aalaya AI Voice Assistant"
+                      >
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                        </span>
+                        <Mic size={16} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-black text-[#0f2547] hidden sm:inline">Voice Search</span>
+                      </button>
                     </div>
 
                     <button
@@ -437,6 +479,7 @@ export default function Home() {
                     </button>
                   </div>
                 </form>
+
 
                 {/* 2. Sleek 3-Step Micro Strip (Single row on mobile & desktop) */}
                 <div className="grid grid-cols-3 gap-1 sm:gap-2 py-1.5 sm:py-2 px-2 sm:px-3 rounded-xl bg-slate-900/70 border border-white/10 text-slate-300 text-[9px] sm:text-xs text-center sm:text-left">
@@ -1742,6 +1785,13 @@ export default function Home() {
           </span>
         </button>
       </div>
+
+      {/* Stay Alaya AI Voice Assistant Full-Screen Translucent Overlay */}
+      <AalayaVoiceAssistant
+        isOpen={isVoiceAssistantOpen}
+        onClose={() => setIsVoiceAssistantOpen(false)}
+      />
     </div>
   );
 }
+
