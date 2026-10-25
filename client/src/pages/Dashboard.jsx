@@ -14,8 +14,12 @@ import {
   Save,
   Camera,
   Loader2,
-  UploadCloud,
   Trash2,
+  Maximize2,
+  Compass,
+  CheckCircle2,
+  Eye,
+  Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../hooks/useAuth";
@@ -35,7 +39,7 @@ const TABS = [
 
 export default function Dashboard() {
   const { currentUser, updateCurrentUser } = useAuth();
-  const { getSavedPGs, getPGReviews, getPGById, pgs, createNotification } = useData();
+  const { getSavedPGs, getPGReviews, pgs, createNotification } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("profile");
@@ -55,7 +59,8 @@ export default function Dashboard() {
   const [profilePhone, setProfilePhone] = useState(currentUser?.phone || "");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Profile photo upload state
+  // Profile photo upload & full-screen view state
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState(
@@ -69,6 +74,18 @@ export default function Dashboard() {
       setPreviewPhoto(currentUser.avatar_url || currentUser.avatar || null);
     }
   }, [currentUser]);
+
+  // Handle escape key to close modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsPhotoModalOpen(false);
+        setIsEditingProfile(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -123,7 +140,7 @@ export default function Dashboard() {
         avatar: secureUrl,
       });
 
-      // 4. Role-isolated user notification (stays with user, not shown to admin)
+      // 4. Role-isolated user notification
       await createNotification({
         userId: currentUser?.id,
         targetRole: currentUser?.role || "student",
@@ -172,6 +189,7 @@ export default function Dashboard() {
 
       setPreviewPhoto(null);
       toast.success("Profile photo removed successfully.", { id: toastId });
+      setIsPhotoModalOpen(false);
     } catch (err) {
       toast.error("Failed to remove profile photo.", { id: toastId });
     } finally {
@@ -205,7 +223,7 @@ export default function Dashboard() {
     }
 
     if (trimmedPhone && !/^[0-9+\s\-()]{7,15}$/.test(trimmedPhone)) {
-      toast.error("Please enter a valid phone number (e.g. 9876543210)");
+      toast.error("Please enter a valid phone number (e.g. +91 9876543210)");
       return;
     }
 
@@ -233,6 +251,7 @@ export default function Dashboard() {
       }
 
       setIsEditingProfile(false);
+      toast.success("Profile updated successfully!");
     } catch (err) {
       toast.error(err?.message || "Failed to update profile");
     } finally {
@@ -240,356 +259,355 @@ export default function Dashboard() {
     }
   };
 
-  const handleCancelEdit = () => {
-    setProfileName(currentUser?.name || "");
-    setProfilePhone(currentUser?.phone || "");
-    setIsEditingProfile(false);
-  };
-
   const ownerStatus = currentUser?.ownerRequestStatus || "none";
+  const userPhotoSrc = previewPhoto || currentUser?.avatar_url || currentUser?.avatar;
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 sm:pt-24 lg:pt-28 pb-12">
-      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10">
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900">
-                My Dashboard
-              </h1>
-              <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
-                Manage your profile, saved PGs, and more
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveTab("saved")}
-              className="self-start sm:self-auto px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-medium transition-colors flex items-center gap-2 shadow-xs"
-            >
-              <Heart size={15} /> View Saved PGs
-            </button>
+    <div className="min-h-screen bg-slate-50/70 pt-20 sm:pt-24 lg:pt-28 pb-16">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8">
+        
+        {/* Header */}
+        <div className="mb-4 sm:mb-8">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-[#0f2547] text-[#f5a623] tracking-wide uppercase">
+              Stay Aalaya Dashboard
+            </span>
           </div>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 mt-1 sm:mt-1.5 tracking-tight">
+            Welcome back, {currentUser?.name?.split(" ")[0] || "Student"} 👋
+          </h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
+            Manage your profile, verified Sikkim PG bookmarks, and reviews in one place.
+          </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
-          {/* Sidebar Tabs */}
-          <aside className="lg:w-56 shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-1.5 sm:p-3 flex lg:flex-col overflow-x-auto gap-1 sm:gap-1.5 scrollbar-none">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 lg:w-full ${
-                    activeTab === t.id
-                      ? "bg-primary-600 text-white shadow-sm font-semibold"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  <t.icon size={15} /> <span>{t.label}</span>
-                </button>
-              ))}
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+          {/* Sidebar Tabs with Live Counts */}
+          <aside className="lg:w-60 shrink-0">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/80 p-1.5 sm:p-2.5 flex lg:flex-col overflow-x-auto gap-1 sm:gap-1.5 scrollbar-none sticky top-20 sm:top-28 z-10">
+              {TABS.map((t) => {
+                const isActive = activeTab === t.id;
+                let badge = null;
+                if (t.id === "saved" && savedPGs.length > 0) badge = savedPGs.length;
+                if (t.id === "reviews" && myReviews.length > 0) badge = myReviews.length;
+
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 lg:w-full cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? "bg-[#0f2547] text-white font-semibold shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <t.icon size={15} className={isActive ? "text-[#f5a623]" : "text-slate-400"} />
+                      <span>{t.label}</span>
+                    </div>
+                    {badge !== null && (
+                      <span
+                        className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ml-1.5 ${
+                          isActive
+                            ? "bg-[#f5a623] text-[#0f2547]"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
-          {/* Content */}
+          {/* Main Content Area */}
           <main className="flex-1 min-w-0">
             {activeTab === "profile" && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Profile Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6 lg:p-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
-                      {/* Interactive Profile Avatar with direct Cloudinary upload */}
-                      <div className="relative group self-start sm:self-center shrink-0">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl overflow-hidden shadow-md shadow-slate-900/10 border-2 border-white ring-2 ring-slate-200/80 bg-slate-100 flex items-center justify-center relative">
-                          {previewPhoto || currentUser?.avatar_url || currentUser?.avatar ? (
-                            <img
-                              src={previewPhoto || currentUser?.avatar_url || currentUser?.avatar}
-                              alt={currentUser?.name || "User Avatar"}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-tr from-primary-700 to-primary-500 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold font-display">
-                              {currentUser?.name?.charAt(0).toUpperCase() || <User size={32} />}
-                            </div>
-                          )}
-
-                          {/* Loading Spinner Overlay */}
-                          {isUploadingPhoto && (
-                            <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 animate-fade-in">
-                              <Loader2 size={24} className="animate-spin text-amber-400" />
-                              <span className="text-[10px] font-bold mt-1 tracking-wide">
-                                Uploading...
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Hover Overlay Button to trigger photo select */}
-                          {!isUploadingPhoto && (
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white cursor-pointer z-10"
-                              title="Click to change profile photo"
-                              aria-label="Change Profile Photo"
-                            >
-                              <Camera size={20} className="drop-shadow" />
-                              <span className="text-[10px] font-bold mt-1">Change</span>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Camera Action Badge */}
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploadingPhoto}
-                          className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#0f2547] hover:bg-[#16335d] text-[#f5a623] shadow-md border-2 border-white transition-all hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-50 z-20"
-                          title="Upload new profile photo"
-                          aria-label="Upload photo"
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xs border border-slate-200/80 p-4 sm:p-6 lg:p-8">
+                  {/* Top Profile Banner Header */}
+                  <div className="flex flex-col gap-3.5 sm:gap-5 pb-5 sm:pb-6 border-b border-slate-100">
+                    <div className="flex items-center justify-between gap-3 sm:gap-5">
+                      <div className="flex items-center gap-3 sm:gap-4.5 min-w-0 flex-1">
+                        
+                        {/* Interactive Profile Avatar - Click opens Full-Screen Photo Modal */}
+                        <div
+                          onClick={() => setIsPhotoModalOpen(true)}
+                          className="relative group cursor-pointer shrink-0"
+                          title="Click to view full photo"
                         >
-                          <Camera size={13} />
-                        </button>
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl overflow-hidden shadow-md border-2 border-white ring-2 ring-slate-200/80 bg-slate-100 flex items-center justify-center relative transition-transform duration-200 group-hover:scale-105">
+                            {userPhotoSrc ? (
+                              <img
+                                src={userPhotoSrc}
+                                alt={currentUser?.name || "User Avatar"}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-tr from-[#0f2547] to-primary-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold font-display">
+                                {currentUser?.name?.charAt(0).toUpperCase() || <User size={26} />}
+                              </div>
+                            )}
 
-                        {/* Hidden File Input */}
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoSelect}
-                          className="hidden"
-                          aria-hidden="true"
-                        />
-                      </div>
+                            {/* Loading Overlay */}
+                            {isUploadingPhoto && (
+                              <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20">
+                                <Loader2 size={20} className="animate-spin text-amber-400" />
+                                <span className="text-[9px] font-bold mt-1">Uploading...</span>
+                              </div>
+                            )}
 
-                      <div>
-                        <h2 className="font-semibold text-slate-900 text-xl flex items-center gap-2">
-                          {currentUser?.name}
-                        </h2>
-                        <p className="text-slate-500 text-sm">{currentUser?.email}</p>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span
-                            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
-                              currentUser?.role === "admin"
-                                ? "bg-red-100 text-red-700 border border-red-200"
-                                : currentUser?.role === "owner"
-                                ? "bg-purple-100 text-purple-700 border border-purple-200"
-                                : "bg-blue-100 text-blue-700 border border-blue-200"
-                            }`}
-                          >
-                            {currentUser?.role === "student" || currentUser?.role === "user"
-                              ? "STUDENT / USER"
-                              : currentUser?.role?.toUpperCase()}
-                          </span>
-                          {currentUser?.phone && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full">
-                              <Phone size={11} className="text-primary-600" />
-                              {currentUser.phone}
+                            {/* Subtle hover icon indicating click-to-view in full screen */}
+                            {!isUploadingPhoto && (
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white z-10 rounded-2xl">
+                                <Maximize2 size={16} className="drop-shadow" />
+                                <span className="text-[9px] font-bold mt-0.5 drop-shadow">View Photo</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Subtle expand indicator badge */}
+                          <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-white shadow-md border border-slate-200 text-slate-600 group-hover:text-primary-600 transition-colors">
+                            <Eye size={11} />
+                          </div>
+                        </div>
+
+                        {/* User Info details */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <h2 className="font-bold text-slate-900 text-base sm:text-xl font-display truncate">
+                              {currentUser?.name || "Stay Aalaya Member"}
+                            </h2>
+                            <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 sm:px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 shrink-0">
+                              <CheckCircle2 size={10} className="text-emerald-600" /> Verified
                             </span>
-                          )}
-
-                          {/* Quick Photo Upload & Remove Buttons */}
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploadingPhoto}
-                            className="text-xs font-semibold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            <Camera size={11} />
-                            <span>
-                              {previewPhoto || currentUser?.avatar_url || currentUser?.avatar
-                                ? "Change Photo"
-                                : "Upload Photo"}
-                            </span>
-                          </button>
-
-                          {(previewPhoto || currentUser?.avatar_url || currentUser?.avatar) && (
-                            <button
-                              type="button"
-                              onClick={handleRemovePhoto}
-                              disabled={isUploadingPhoto}
-                              className="text-xs font-medium text-slate-400 hover:text-rose-600 px-1.5 py-0.5 transition-colors cursor-pointer disabled:opacity-50"
-                              title="Remove profile photo"
+                          </div>
+                          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 truncate" title={currentUser?.email}>
+                            {currentUser?.email}
+                          </p>
+                          
+                          <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 flex-wrap">
+                            <span
+                              className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 rounded-full font-semibold shrink-0 ${
+                                currentUser?.role === "admin"
+                                  ? "bg-red-100 text-red-700 border border-red-200"
+                                  : currentUser?.role === "owner"
+                                  ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                  : "bg-blue-50 text-blue-700 border border-blue-200"
+                              }`}
                             >
-                              Remove
-                            </button>
-                          )}
+                              {currentUser?.role === "student" || currentUser?.role === "user"
+                                ? "STUDENT / USER"
+                                : currentUser?.role?.toUpperCase()}
+                            </span>
+                            
+                            {currentUser?.phone && (
+                              <span className="text-[10px] sm:text-xs text-slate-600 flex items-center gap-1 font-medium bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-full shrink-0">
+                                <Phone size={10} className="text-emerald-600" />
+                                {currentUser.phone}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {!isEditingProfile && (
+                      {/* Desktop/Tablet Edit Profile Action Button */}
                       <button
                         onClick={() => setIsEditingProfile(true)}
-                        className="self-start sm:self-center px-4 py-2 rounded-xl bg-slate-100 hover:bg-primary-50 text-slate-700 hover:text-primary-700 text-sm font-medium transition-all flex items-center gap-2 border border-slate-200"
+                        className="hidden sm:inline-flex px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition-all items-center gap-2 border border-slate-200 cursor-pointer shadow-xs hover:shadow-sm shrink-0"
                       >
-                        <Edit2 size={14} /> Edit Profile
+                        <Edit2 size={14} className="text-slate-600" />
+                        <span>Edit Profile</span>
                       </button>
-                    )}
+                    </div>
+
+                    {/* Mobile Full-Width Edit Profile Action Button */}
+                    <button
+                      onClick={() => setIsEditingProfile(true)}
+                      className="sm:hidden w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 text-xs font-semibold transition-all flex items-center justify-center gap-2 border border-slate-200 cursor-pointer shadow-xs"
+                    >
+                      <Edit2 size={13} className="text-slate-600" />
+                      <span>Edit Profile</span>
+                    </button>
                   </div>
 
                   {/* Personal & Contact Details Section */}
-                  <div className="mb-8">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
-                      Personal & Contact Details
+                  <div className="my-5 sm:my-6">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 sm:mb-3.5">
+                      Personal & Contact Information
                     </h3>
 
-                    {isEditingProfile ? (
-                      <form onSubmit={handleSaveProfile} className="space-y-4 max-w-lg bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Full Name <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="text"
-                              value={profileName}
-                              onChange={(e) => setProfileName(e.target.value)}
-                              placeholder="Enter your full name"
-                              className="input-field pl-10 text-sm"
-                              required
-                            />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
+                      {/* Full Name */}
+                      <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-100/70 text-blue-700 flex items-center justify-center shrink-0">
+                            <User size={15} />
                           </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Phone Number
-                          </label>
-                          <div className="relative">
-                            <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="tel"
-                              value={profilePhone}
-                              onChange={(e) => setProfilePhone(e.target.value)}
-                              placeholder="e.g. +91 9876543210"
-                              className="input-field pl-10 text-sm"
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-1">
-                            This phone number will be used for accommodation contact and updates.
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Email Address
-                          </label>
-                          <div className="relative">
-                            <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="email"
-                              value={currentUser?.email || ""}
-                              disabled
-                              className="input-field pl-10 text-sm bg-slate-100 text-slate-400 cursor-not-allowed"
-                            />
-                          </div>
-                          <span className="text-[11px] text-slate-400 mt-1 block">
-                            Email cannot be changed directly here. Contact support to transfer accounts.
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-2">
-                          <button
-                            type="submit"
-                            disabled={isSaving}
-                            className="btn-primary py-2 px-5 text-sm flex items-center gap-2"
-                          >
-                            <Save size={14} />
-                            {isSaving ? "Saving..." : "Save Changes"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleCancelEdit}
-                            disabled={isSaving}
-                            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-sm font-medium transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70">
-                          <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-1">
-                            <User size={13} /> Full Name
-                          </span>
-                          <p className="font-semibold text-slate-800 text-sm">{currentUser?.name}</p>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70">
-                          <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-1">
-                            <Phone size={13} /> Phone Number
-                          </span>
-                          {currentUser?.phone ? (
-                            <p className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                              {currentUser.phone}
-                              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
-                                Active
-                              </span>
-                            </p>
-                          ) : (
-                            <button
-                              onClick={() => setIsEditingProfile(true)}
-                              className="text-xs text-primary-600 hover:text-primary-700 font-medium underline flex items-center gap-1 mt-0.5"
-                            >
-                              + Add Phone Number
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70">
-                          <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-1">
-                            <Mail size={13} /> Email Address
-                          </span>
-                          <p className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                            {currentUser?.email}
-                            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
-                              Verified
+                          <div className="min-w-0">
+                            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">
+                              Full Name
                             </span>
-                          </p>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70">
-                          <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-1">
-                            <Shield size={13} /> Account Role
-                          </span>
-                          <p className="font-semibold text-slate-800 text-sm">
-                            {currentUser?.role === "student" || currentUser?.role === "user"
-                              ? "Student / User"
-                              : currentUser?.role === "owner"
-                              ? "Property Owner"
-                              : currentUser?.role === "admin"
-                              ? "Administrator"
-                              : currentUser?.role}
-                          </p>
+                            <p className="font-semibold text-slate-900 text-xs sm:text-sm mt-0.5 truncate">
+                              {currentUser?.name || "Not provided"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    )}
+
+                      {/* Phone Number */}
+                      <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-100/70 text-emerald-700 flex items-center justify-center shrink-0">
+                            <Phone size={15} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">
+                              Phone Number
+                            </span>
+                            {currentUser?.phone ? (
+                              <p className="font-semibold text-slate-900 text-xs sm:text-sm mt-0.5 flex items-center gap-1.5 truncate">
+                                {currentUser.phone}
+                                <span className="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                                  Active
+                                </span>
+                              </p>
+                            ) : (
+                              <button
+                                onClick={() => setIsEditingProfile(true)}
+                                className="text-xs text-primary-600 hover:text-primary-700 font-semibold underline mt-0.5 cursor-pointer block truncate"
+                              >
+                                + Add Phone Number
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Email Address */}
+                      <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-sky-100/70 text-sky-700 flex items-center justify-center shrink-0">
+                            <Mail size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">
+                              Email Address
+                            </span>
+                            <p className="font-semibold text-slate-900 text-xs sm:text-sm mt-0.5 truncate" title={currentUser?.email}>
+                              {currentUser?.email}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[9px] sm:text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Check size={10} /> Verified
+                        </span>
+                      </div>
+
+                      {/* Account Role */}
+                      <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-purple-100/70 text-purple-700 flex items-center justify-center shrink-0">
+                            <Shield size={15} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">
+                              Account Role
+                            </span>
+                            <p className="font-semibold text-slate-900 text-xs sm:text-sm mt-0.5 truncate">
+                              {currentUser?.role === "student" || currentUser?.role === "user"
+                                ? "Student / User"
+                                : currentUser?.role === "owner"
+                                ? "Property Owner"
+                                : currentUser?.role === "admin"
+                                ? "Administrator"
+                                : currentUser?.role}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[9px] sm:text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">
+                          Member
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* 3 Stats Overview Cards */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-slate-100">
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100">
-                      <div className="text-lg sm:text-2xl font-bold text-primary-600 font-display">
-                        {savedPGs.length}
-                      </div>
-                      <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">Saved PGs</div>
+                  {/* 3 Interactive Stats Cards - Compact 3-col on Mobile */}
+                  <div className="pt-4 sm:pt-5 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Activity Overview (Click to open)
+                      </span>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100">
-                      <div className="text-lg sm:text-2xl font-bold text-primary-600 font-display">
-                        {myReviews.length}
+
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                      {/* Card 1: Saved PGs */}
+                      <div
+                        onClick={() => setActiveTab("saved")}
+                        className="group relative bg-gradient-to-br from-rose-50/60 via-white to-white rounded-xl sm:rounded-2xl p-2.5 sm:p-5 border border-rose-100 hover:border-rose-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-center sm:text-left"
+                        title="Click to view saved PGs"
+                      >
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                          <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto sm:mx-0 group-hover:scale-110 transition-transform">
+                            <Heart size={14} className="sm:w-[18px] sm:h-[18px] fill-rose-500/20" />
+                          </div>
+                          <span className="hidden sm:inline-flex text-[11px] font-semibold text-rose-600 items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                            View <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </div>
+                        <div className="text-lg sm:text-3xl font-bold text-slate-900 font-display">
+                          {savedPGs.length}
+                        </div>
+                        <div className="text-slate-500 text-[10px] sm:text-xs font-medium mt-0.5 sm:mt-1 truncate">
+                          Saved PGs
+                        </div>
                       </div>
-                      <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
-                        Reviews
+
+                      {/* Card 2: Reviews */}
+                      <div
+                        onClick={() => setActiveTab("reviews")}
+                        className="group relative bg-gradient-to-br from-amber-50/60 via-white to-white rounded-xl sm:rounded-2xl p-2.5 sm:p-5 border border-amber-100 hover:border-amber-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-center sm:text-left"
+                        title="Click to view your reviews"
+                      >
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                          <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto sm:mx-0 group-hover:scale-110 transition-transform">
+                            <Star size={14} className="sm:w-[18px] sm:h-[18px] fill-amber-500/20" />
+                          </div>
+                          <span className="hidden sm:inline-flex text-[11px] font-semibold text-amber-600 items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                            View <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </div>
+                        <div className="text-lg sm:text-3xl font-bold text-slate-900 font-display">
+                          {myReviews.length}
+                        </div>
+                        <div className="text-slate-500 text-[10px] sm:text-xs font-medium mt-0.5 sm:mt-1 truncate">
+                          My Reviews
+                        </div>
                       </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100">
-                      <div className="text-lg sm:text-2xl font-bold text-primary-600 font-display capitalize truncate">
-                        {ownerStatus}
-                      </div>
-                      <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
-                        Owner Status
+
+                      {/* Card 3: Owner Status */}
+                      <div
+                        onClick={() => setActiveTab("owner")}
+                        className="group relative bg-gradient-to-br from-indigo-50/60 via-white to-white rounded-xl sm:rounded-2xl p-2.5 sm:p-5 border border-indigo-100 hover:border-indigo-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-center sm:text-left"
+                        title="Click to check owner application status"
+                      >
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                          <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto sm:mx-0 group-hover:scale-110 transition-transform">
+                            <Building2 size={14} className="sm:w-[18px] sm:h-[18px]" />
+                          </div>
+                          <span className="hidden sm:inline-flex text-[11px] font-semibold text-indigo-600 items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                            Status <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </div>
+                        <div className="text-sm sm:text-2xl font-bold text-slate-900 font-display capitalize truncate">
+                          {ownerStatus === "none" ? "Explore" : ownerStatus === "approved" ? "Approved" : "Pending"}
+                        </div>
+                        <div className="text-slate-500 text-[10px] sm:text-xs font-medium mt-0.5 sm:mt-1 truncate">
+                          {ownerStatus === "none" ? "Owner Portal" : "Owner Status"}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -597,18 +615,35 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Saved PGs Tab */}
             {activeTab === "saved" && (
               <div>
-                <h2 className="font-semibold text-slate-900 text-lg mb-6">
-                  Saved PGs ({savedPGs.length})
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-xl font-display">
+                      Saved PGs & Hostels ({savedPGs.length})
+                    </h2>
+                    <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+                      Your bookmarked rooms across Sikkim colleges and localities
+                    </p>
+                  </div>
+                  {savedPGs.length > 0 && (
+                    <button
+                      onClick={() => navigate("/find-pg")}
+                      className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1 hover:underline cursor-pointer"
+                    >
+                      <Compass size={14} /> Find More PGs
+                    </button>
+                  )}
+                </div>
+
                 {savedPGs.length === 0 ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+                  <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 p-4 sm:p-8">
                     <EmptyState
-                      title="No saved PGs"
-                      message="Start exploring and save properties you like."
+                      title="No saved PGs yet"
+                      message="You haven't bookmarked any PGs. Explore verified student stays in Gangtok, Tadong, Majitar, and around Sikkim colleges."
                       icon={Heart}
-                      actionLabel="Find PGs"
+                      actionLabel="Explore Sikkim PGs"
                       onAction={() => navigate("/find-pg")}
                     />
                   </div>
@@ -622,18 +657,27 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Reviews Tab */}
             {activeTab === "reviews" && (
               <div>
-                <h2 className="font-semibold text-slate-900 text-lg mb-6">
-                  My Reviews ({myReviews.length})
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-xl font-display">
+                      My Reviews ({myReviews.length})
+                    </h2>
+                    <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+                      Reviews and feedback you shared with the Sikkim student community
+                    </p>
+                  </div>
+                </div>
+
                 {myReviews.length === 0 ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+                  <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 p-4 sm:p-8">
                     <EmptyState
                       title="No reviews yet"
-                      message="Visit a PG page to write your first review."
+                      message="Visit any PG detail page to share your experience and write your first verified review."
                       icon={Star}
-                      actionLabel="Find PGs"
+                      actionLabel="Browse PGs to Review"
                       onAction={() => navigate("/find-pg")}
                     />
                   </div>
@@ -642,13 +686,13 @@ export default function Dashboard() {
                     {myReviews.map((r) => (
                       <div
                         key={r.id}
-                        className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                        className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-5 sm:p-6 hover:border-slate-300 transition-colors"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            {currentUser?.avatar_url || currentUser?.avatar ? (
+                            {userPhotoSrc ? (
                               <img
-                                src={currentUser.avatar_url || currentUser.avatar}
+                                src={userPhotoSrc}
                                 alt={currentUser?.name || "User"}
                                 className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
                               />
@@ -660,7 +704,7 @@ export default function Dashboard() {
                             <div>
                               <button
                                 onClick={() => navigate(`/pg/${r.pgId}`)}
-                                className="font-semibold text-slate-900 hover:text-primary-600 transition-colors flex items-center gap-1"
+                                className="font-semibold text-slate-900 hover:text-primary-600 transition-colors flex items-center gap-1 text-sm sm:text-base cursor-pointer"
                               >
                                 {r.pgTitle} <ChevronRight size={14} />
                               </button>
@@ -671,8 +715,8 @@ export default function Dashboard() {
                           </div>
                           <StarRating rating={r.rating} size="sm" />
                         </div>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                          {r.comment}
+                        <p className="text-slate-600 text-sm leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                          "{r.comment}"
                         </p>
                       </div>
                     ))}
@@ -681,78 +725,99 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Owner Tab */}
             {activeTab === "owner" && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-                <h2 className="font-semibold text-slate-900 text-lg mb-6">
-                  Become a Property Owner
+              <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 p-6 sm:p-8">
+                <h2 className="font-bold text-slate-900 text-xl font-display mb-2">
+                  Become a Stay Aalaya Property Owner
                 </h2>
+                <p className="text-slate-500 text-sm mb-6">
+                  List your hostel, homestay, or PG in Sikkim and connect directly with verified students and working professionals.
+                </p>
+
                 {ownerStatus === "none" && (
                   <div>
-                    <div className="bg-primary-50 rounded-2xl p-6 mb-6 border border-primary-100">
-                      <h3 className="font-semibold text-primary-900 mb-3">
-                        Benefits of becoming an Owner
+                    <div className="bg-primary-50/70 rounded-2xl p-6 mb-6 border border-primary-100">
+                      <h3 className="font-bold text-primary-950 mb-3 flex items-center gap-2">
+                        <Sparkles size={16} className="text-[#f5a623]" /> Benefits of listing with Stay Aalaya
                       </h3>
-                      <ul className="space-y-2">
+                      <ul className="space-y-2.5">
                         {[
-                          "List unlimited PGs on our platform",
-                          "Reach thousands of potential tenants",
-                          "Manage bookings from your dashboard",
-                          "Get verified badge for your listings",
-                          "Direct communication with tenants",
+                          "List unlimited PGs and rooms on our Sikkim platform",
+                          "Reach thousands of incoming SMIT, ICFAI, SRM, & SU students",
+                          "Manage tenant inquiries with direct WhatsApp & phone contact",
+                          "Receive a verified badge on your listings after physical verification",
+                          "Zero hidden commission on student leases",
                         ].map((b) => (
                           <li
                             key={b}
-                            className="flex items-center gap-2 text-primary-700 text-sm"
+                            className="flex items-center gap-2.5 text-primary-800 text-xs sm:text-sm font-medium"
                           >
-                            <Check size={14} className="text-primary-500" /> {b}
+                            <div className="w-4 h-4 rounded-full bg-primary-200 text-primary-800 flex items-center justify-center shrink-0">
+                              <Check size={11} />
+                            </div>
+                            <span>{b}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                     <button
                       onClick={() => navigate("/list-your-pg")}
-                      className="btn-primary"
+                      className="px-6 py-3 rounded-xl bg-[#0f2547] hover:bg-[#16335d] text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center gap-2"
                     >
-                      Request Owner Access
+                      <span>Apply for Owner Access</span>
+                      <ChevronRight size={16} className="text-[#f5a623]" />
                     </button>
                   </div>
                 )}
+
                 {ownerStatus === "pending" && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                  <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-6">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl">
                         ⏳
                       </div>
-                      <h3 className="font-semibold text-amber-900">
-                        Request Under Review
-                      </h3>
+                      <div>
+                        <h3 className="font-bold text-amber-900">
+                          Application Under Review
+                        </h3>
+                        <p className="text-amber-700 text-xs mt-0.5">
+                          Submitted on your account
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-amber-700 text-sm">
-                      Your owner access request is being reviewed by our admin
-                      team. You'll be notified once approved.
+                    <p className="text-amber-800 text-sm mt-3 leading-relaxed">
+                      Your owner access request is being verified by our Sikkim administration team. Once verified, you will receive an in-app notification and instant access to your Property Owner Dashboard.
                     </p>
                   </div>
                 )}
+
                 {ownerStatus === "approved" && (
                   <div>
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-4">
+                    <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-6 mb-5">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                          ✅
+                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700">
+                          <CheckCircle2 size={24} />
                         </div>
-                        <h3 className="font-semibold text-emerald-900">
-                          You are now an Owner!
-                        </h3>
+                        <div>
+                          <h3 className="font-bold text-emerald-950">
+                            You are an Approved Property Owner!
+                          </h3>
+                          <p className="text-emerald-700 text-xs mt-0.5">
+                            Full owner listing permissions active
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-emerald-700 text-sm">
-                        You can now list and manage PG properties on Stay Aalaya.
+                      <p className="text-emerald-800 text-sm mt-3 leading-relaxed">
+                        You can now list and manage your rooms, amenities, rent pricing, and student applications on Stay Aalaya.
                       </p>
                     </div>
                     <button
                       onClick={() => navigate("/owner")}
-                      className="btn-primary flex items-center gap-2"
+                      className="px-6 py-3 rounded-xl bg-[#0f2547] hover:bg-[#16335d] text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center gap-2"
                     >
-                      Go to Owner Dashboard <ChevronRight size={15} />
+                      <span>Go to Owner Dashboard</span>
+                      <ChevronRight size={16} className="text-[#f5a623]" />
                     </button>
                   </div>
                 )}
@@ -761,6 +826,265 @@ export default function Dashboard() {
           </main>
         </div>
       </div>
+
+      {/* Hidden File Input for Photo Selection */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoSelect}
+        className="hidden"
+        aria-hidden="true"
+      />
+
+      {/* Full-Screen Photo Modal / Lightbox (Opened on Avatar Click) */}
+      {isPhotoModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-3.5 sm:p-6 animate-fade-in select-none"
+          onClick={() => setIsPhotoModalOpen(false)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-8 flex flex-col items-center text-center max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              onClick={() => setIsPhotoModalOpen(false)}
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+              title="Close (Esc)"
+              aria-label="Close photo preview"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Modal Title */}
+            <div className="mb-4 sm:mb-6">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#f5a623]">
+                Profile Photo
+              </span>
+              <h3 className="text-white text-base sm:text-lg font-bold font-display mt-0.5">
+                {currentUser?.name || "Student"}
+              </h3>
+              <p className="text-slate-400 text-xs mt-0.5 sm:mt-1">
+                Full-screen preview & photo management
+              </p>
+            </div>
+
+            {/* Full Preview Image Container */}
+            <div className="relative w-44 h-44 sm:w-64 sm:h-64 rounded-2xl sm:rounded-3xl overflow-hidden border-4 border-slate-800 shadow-2xl bg-slate-800/60 flex items-center justify-center mb-5 sm:mb-6">
+              {userPhotoSrc ? (
+                <img
+                  src={userPhotoSrc}
+                  alt={currentUser?.name || "Profile Photo"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-[#0f2547] to-primary-600 flex flex-col items-center justify-center text-white p-4">
+                  <span className="text-5xl sm:text-6xl font-bold font-display mb-2">
+                    {currentUser?.name?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                  <span className="text-xs text-white/80">No photo uploaded</span>
+                </div>
+              )}
+
+              {/* Uploading Status Overlay */}
+              {isUploadingPhoto && (
+                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20">
+                  <Loader2 size={30} className="animate-spin text-[#f5a623] mb-2" />
+                  <span className="text-xs font-semibold tracking-wide">
+                    Uploading to Cloudinary...
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Separate Photo Action Controls */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#0f2547] hover:bg-[#16335d] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer disabled:opacity-50 border border-slate-700"
+              >
+                <Camera size={15} className="text-[#f5a623]" />
+                <span>{userPhotoSrc ? "Change Photo" : "Upload Photo"}</span>
+              </button>
+
+              {userPhotoSrc && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  disabled={isUploadingPhoto}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                  <span>Remove Photo</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsPhotoModalOpen(false)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal Dialog */}
+      {isEditingProfile && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3.5 sm:p-4 animate-fade-in"
+          onClick={() => setIsEditingProfile(false)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-7 border border-slate-100 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 sm:pb-4 border-b border-slate-100 mb-4 sm:mb-5">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base sm:text-lg font-display">
+                  Edit Profile Information
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Update your contact details for host communication
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditingProfile(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Close edit profile dialog"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick Photo Option inside Edit Modal */}
+            <div className="flex items-center gap-3.5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-200/80 mb-4 sm:mb-5">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+                {userPhotoSrc ? (
+                  <img
+                    src={userPhotoSrc}
+                    alt={profileName || "User"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-tr from-[#0f2547] to-primary-600 flex items-center justify-center text-white font-bold text-base sm:text-lg">
+                    {profileName?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-slate-800 block">
+                  Profile Photo
+                </span>
+                <span className="text-[11px] text-slate-500 block truncate">
+                  {userPhotoSrc ? "Custom photo active" : "No photo set yet"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isUploadingPhoto ? "Uploading..." : "Change"}
+              </button>
+            </div>
+
+            {/* Edit Form */}
+            <form onSubmit={handleSaveProfile} className="space-y-3.5 sm:space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-xs sm:text-sm transition-all text-slate-900 bg-white"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-xs sm:text-sm transition-all text-slate-900 bg-white"
+                  />
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
+                  Used for PG booking confirmations and landlord inquiries.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={currentUser?.email || ""}
+                    disabled
+                    className="w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-400 bg-slate-100 cursor-not-allowed"
+                  />
+                </div>
+                <span className="text-[10px] sm:text-[11px] text-slate-400 mt-1 block">
+                  Email is locked to your authenticated login provider.
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 sm:pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(false)}
+                  disabled={isSaving}
+                  className="px-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2 sm:py-2.5 rounded-xl bg-[#0f2547] hover:bg-[#16335d] text-white text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin text-[#f5a623]" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={15} className="text-[#f5a623]" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
