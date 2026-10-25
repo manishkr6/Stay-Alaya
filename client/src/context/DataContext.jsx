@@ -1083,6 +1083,24 @@ export function DataProvider({ children }) {
     [fetchAdminData, fetchApprovedPgsAndReviews, fetchOwnerPgs, createNotification]
   );
 
+  const togglePGAvailability = useCallback(
+    async (id, currentAvailability) => {
+      const newAvailability = !currentAvailability;
+      const { error } = await supabase
+        .from('pg_listings')
+        .update({
+          is_available: newAvailability,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+      await fetchOwnerPgs();
+      await fetchApprovedPgsAndReviews();
+      return newAvailability;
+    },
+    [fetchOwnerPgs, fetchApprovedPgsAndReviews]
+  );
+
   const approveDeletePG = useCallback(
     async (id) => {
       const target = pgsRef.current.find((p) => String(p.id) === String(id));
@@ -1735,6 +1753,10 @@ export function DataProvider({ children }) {
       getUnreadCount,
       fetchAdminData,
       fetchNotifications,
+      fetchOwnerPgs,
+      togglePGAvailability,
+      fetchApprovedPgsAndReviews,
+      fetchSavedPgs,
     }),
     [
       pgs,
@@ -1771,6 +1793,10 @@ export function DataProvider({ children }) {
       getUnreadCount,
       fetchAdminData,
       fetchNotifications,
+      fetchOwnerPgs,
+      togglePGAvailability,
+      fetchApprovedPgsAndReviews,
+      fetchSavedPgs,
     ]
   );
 

@@ -376,17 +376,6 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
-
-                {/* Admin Big Screen Direct Logout Button */}
-                <button
-                  onClick={handleLogout}
-                  title="Log Out"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/80 bg-white hover:border-rose-200 transition-all shadow-xs cursor-pointer group"
-                  aria-label="Log Out"
-                >
-                  <LogOut size={14} className="text-rose-500 group-hover:rotate-12 transition-transform" />
-                  <span>Logout</span>
-                </button>
               </>
             ) : (
               /* Authenticated on public / normal pages */
@@ -532,17 +521,6 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
-
-                {/* Big Screen Direct Logout Option */}
-                <button
-                  onClick={handleLogout}
-                  title="Log Out"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/80 bg-white hover:border-rose-200 transition-all shadow-xs cursor-pointer group"
-                  aria-label="Log Out"
-                >
-                  <LogOut size={14} className="text-rose-500 group-hover:rotate-12 transition-transform" />
-                  <span>Logout</span>
-                </button>
               </>
             )}
           </div>
@@ -572,13 +550,7 @@ export default function Navbar() {
                 <Link
                   to={roleLinks[currentUser.role]?.path || "/dashboard"}
                   title="Open Dashboard"
-                  className={`relative p-1 rounded-full transition-all shrink-0 flex items-center justify-center ${
-                    location.pathname.startsWith(
-                      roleLinks[currentUser.role]?.path || "/dashboard",
-                    )
-                      ? "bg-[#0f2547] ring-2 ring-[#f5a623] shadow-md"
-                      : "hover:bg-slate-100 text-slate-700"
-                  }`}
+                  className="relative shrink-0 flex items-center justify-center transition-transform active:scale-95"
                   aria-label="User Dashboard"
                 >
                   {currentUser.avatar_url || currentUser.avatar ? (
@@ -589,18 +561,18 @@ export default function Navbar() {
                         location.pathname.startsWith(
                           roleLinks[currentUser.role]?.path || "/dashboard",
                         )
-                          ? "border-2 border-[#f5a623]"
-                          : "border border-slate-200 shadow-xs"
+                          ? "ring-1.5 ring-[#f5a623] shadow-xs"
+                          : "border border-slate-200 shadow-2xs"
                       }`}
                     />
                   ) : (
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shadow-xs ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shadow-xs transition-all ${
                         location.pathname.startsWith(
                           roleLinks[currentUser.role]?.path || "/dashboard",
                         )
-                          ? "bg-[#f5a623] text-[#0f2547]"
-                          : "bg-[#0f2547] text-[#f5a623] border border-amber-400/50"
+                          ? "bg-[#f5a623] text-[#0f2547] ring-1.5 ring-[#f5a623]"
+                          : "bg-slate-100 text-slate-700 border border-slate-200"
                       }`}
                     >
                       {currentUser.name?.charAt(0)?.toUpperCase() || "U"}
@@ -609,7 +581,7 @@ export default function Navbar() {
                   {location.pathname.startsWith(
                     roleLinks[currentUser.role]?.path || "/dashboard",
                   ) && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#f5a623] ring-2 ring-white rounded-full animate-pulse shadow-xs" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#f5a623] ring-1 ring-white rounded-full shadow-xs" />
                   )}
                 </Link>
               </>
