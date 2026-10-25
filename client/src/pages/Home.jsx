@@ -318,7 +318,7 @@ export default function Home() {
       {/* ========================================================
           1. HERO SECTION (Screenshot 1: Himalayan Sunset Mountain)
           ======================================================== */}
-      <section className="relative pt-24 pb-12 sm:pt-36 sm:pb-24 overflow-hidden min-h-0 sm:min-h-[88vh] flex flex-col justify-center">
+      <section className="relative pt-20 pb-12 sm:pt-36 sm:pb-24 overflow-hidden min-h-screen min-h-[100dvh] sm:min-h-[88vh] flex flex-col justify-center">
         {/* Mountain Background Photo with Himalayan Atmosphere */}
         <div className="absolute inset-0 z-0">
           <img
