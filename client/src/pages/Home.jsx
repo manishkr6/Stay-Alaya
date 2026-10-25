@@ -330,20 +330,22 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#0b192c]/85 via-[#0f2547]/50 to-[#0b192c]/90" />
         </div>
 
-        {/* Hero Content Container */}
-        <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 text-center w-full">
-          {/* Top Tagline Pill */}
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-[10.5px] sm:text-xs text-slate-200 shadow-md mb-3 sm:mb-5 max-w-[96%] sm:max-w-none">
-            <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse shrink-0" />
-            <span className="font-semibold text-white truncate">#1 AI-Powered Stay Finder in</span>
-            <span className="text-[#f5a623] font-bold shrink-0">Sikkim</span>
-            <span className="text-slate-500 hidden sm:inline">•</span>
-            <span className="text-amber-300 font-medium hidden sm:inline">Powered by Stay Aalaya AI</span>
+        {/* Hero Content Container - Lifted slightly above center on mobile */}
+        <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 text-center w-full -translate-y-5 sm:translate-y-0">
+          {/* Top Tagline Pill - Perfectly Centered */}
+          <div className="flex justify-center mb-3 sm:mb-5">
+            <div className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-[10.5px] mb-8 sm:text-xs text-slate-200 shadow-md max-w-full">
+              <span className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse shrink-0" />
+              <span className="font-semibold text-white whitespace-nowrap">#1 AI-Powered Stay Finder in</span>
+              <span className="text-[#f5a623] font-bold shrink-0">Sikkim</span>
+              <span className="text-slate-500 hidden sm:inline">•</span>
+              <span className="text-amber-300 font-medium hidden sm:inline">Powered by Stay Aalaya AI</span>
+            </div>
           </div>
 
           {/* Hero Headline */}
           <h1
-            className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6 sm:mb-8 md:mb-10 leading-[1.2] sm:leading-[1.15]"
+            className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-10 sm:mb-8 md:mb-10 leading-[1.2] sm:leading-[1.15]"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Find Your Ideal PG & Room in 
@@ -411,7 +413,8 @@ export default function Home() {
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         placeholder="Type naturally: 'ICFAI pass PG under 7000'..."
-                        className="w-full bg-transparent text-slate-900 text-xs sm:text-sm md:text-base font-semibold placeholder:text-slate-400 placeholder:font-normal outline-none border-0"
+                        style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                        className="w-full bg-transparent text-slate-900 text-xs sm:text-sm md:text-base font-semibold placeholder:text-slate-400 placeholder:font-normal no-focus-ring border-0 outline-none ring-0 focus:outline-none focus:ring-0 focus:border-transparent"
                       />
                       {aiPrompt && (
                         <button

@@ -31,6 +31,20 @@
   * {
     box-sizing: border-box;
   }
+
+  /* Utility to eliminate unwanted browser or plugin blue focus outlines */
+  .no-focus-ring,
+  .no-focus-ring:focus,
+  .no-focus-ring:focus-visible,
+  .no-focus-ring:active {
+    outline: none !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+  }
 }
 
 ::-webkit-scrollbar {
