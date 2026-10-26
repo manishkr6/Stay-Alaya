@@ -62,8 +62,9 @@ export default function Navbar() {
       !p.isDeleted,
   ).length;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    setProfileOpen(false);
+    await logout();
     navigate("/");
   };
 
@@ -290,7 +291,7 @@ export default function Navbar() {
                 </Link>
 
                 {/* Admin Profile Dropdown */}
-                <div className="relative">
+                <div className="relative profile-dropdown-container">
                   <button
                     onClick={() => setProfileOpen(!profileOpen)}
                     className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white hover:bg-slate-50 transition-all border border-slate-200/80 shadow-xs cursor-pointer"
@@ -331,6 +332,7 @@ export default function Navbar() {
                       <div className="py-1">
                         <Link
                           to="/admin"
+                          onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                         >
                           <LayoutDashboard size={15} className="text-[#f5a623]" />
@@ -338,6 +340,7 @@ export default function Navbar() {
                         </Link>
                         <Link
                           to="/admin/pending"
+                          onClick={() => setProfileOpen(false)}
                           className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                         >
                           <span className="flex items-center gap-2.5">
@@ -352,6 +355,7 @@ export default function Navbar() {
                         </Link>
                         <Link
                           to="/saved-pgs"
+                          onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                         >
                           <Heart size={15} className="text-[#f5a623]" />
@@ -359,6 +363,7 @@ export default function Navbar() {
                         </Link>
                         <Link
                           to="/"
+                          onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                         >
                           <Globe size={15} className="text-[#f5a623]" />
@@ -368,7 +373,7 @@ export default function Navbar() {
                       <div className="pt-1">
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
                         >
                           <LogOut size={15} /> Logout
                         </button>
@@ -486,6 +491,7 @@ export default function Navbar() {
                       <div className="py-1">
                         <Link
                           to={roleLinks[currentUser.role]?.path || "/dashboard"}
+                          onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                         >
                           <LayoutDashboard size={15} className="text-[#f5a623]" />
@@ -496,6 +502,7 @@ export default function Navbar() {
                         {currentUser.role !== "admin" && (
                           <Link
                             to="/saved-pgs"
+                            onClick={() => setProfileOpen(false)}
                             className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
                           >
                             <span className="flex items-center gap-2.5">
@@ -513,7 +520,7 @@ export default function Navbar() {
                       <div className="pt-1">
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
                         >
                           <LogOut size={15} /> Logout
                         </button>
