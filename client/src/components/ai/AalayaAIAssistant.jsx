@@ -12,9 +12,7 @@ import {
   ExternalLink,
   RotateCcw,
   ChevronRight,
-  Mic,
 } from 'lucide-react';
-
 import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
 import { chatWithAalayaAI } from '../../services/aiService';
@@ -605,26 +603,13 @@ export default function AalayaAIAssistant() {
                     style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                   />
                   <button
-                    type="button"
-                    onClick={() => {
-                      setIsOpen(false);
-                      window.dispatchEvent(new CustomEvent('open-aalaya-voice-assistant'));
-                    }}
-                    className="p-2 rounded-xl text-amber-600 hover:text-amber-700 hover:bg-amber-100/70 transition-all cursor-pointer shrink-0"
-                    title="Switch to Full-Screen AI Voice Assistant"
-                  >
-                    <Mic size={16} />
-                  </button>
-
-                  <button
                     type="submit"
                     disabled={!input.trim() || loading}
-                    className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-[#1a3c6e] text-amber-400 hover:text-amber-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 transition-all shrink-0 cursor-pointer"
+                    className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-[#0f2547] to-[#1a3c6e] text-amber-400 hover:text-amber-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 transition-all shrink-0"
                     title="Send message"
                   >
                     <Send size={15} />
                   </button>
-
                 </form>
 
                 {/* Micro Footer */}
