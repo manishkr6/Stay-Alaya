@@ -13,7 +13,6 @@ import {
   Clock,
   List,
   Users,
-  Globe,
   Plus,
   LogIn,
   Sparkles,
@@ -128,7 +127,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-6 pt-3 sm:pt-4">
+    <nav className="fixed top-0 left-0 right-0 z-50 px-2.5 sm:px-6 pt-2.5 sm:pt-4">
       <div
         className={`max-w-7xl mx-auto rounded-full border transition-all duration-300 ${
           scrolled
@@ -136,11 +135,11 @@ export default function Navbar() {
             : "bg-white/95 border-slate-200/80 shadow-lg shadow-slate-900/5 backdrop-blur-xl"
         }`}
       >
-        <div className="flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6 gap-3">
+        <div className="flex items-center justify-between h-14 sm:h-16 px-2.5 sm:px-6 gap-1.5 sm:gap-3">
           {/* Logo */}
           <Link
-            to={isAdminPage ? "/admin" : "/"}
-            className="flex items-center gap-2 group px-0.5 sm:px-1 py-1 shrink-0"
+            to="/"
+            className="flex items-center gap-1.5 sm:gap-2 group px-0.5 sm:px-1 py-1 shrink-0"
           >
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-amber-400/40 shadow-xs bg-white">
               <img
@@ -163,18 +162,18 @@ export default function Navbar() {
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span
-                  className="text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-slate-800"
+                  className="text-[8px] sm:text-[9.5px] font-bold tracking-widest uppercase text-slate-800"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   ROOMS & PG FINDER
                 </span>
-                <span className="bg-[#0f2547] text-[#f5a623] text-[8px] font-black px-1.5 py-0.2 rounded tracking-wider uppercase">
+                <span className="bg-[#0f2547] text-[#f5a623] text-[7.5px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 rounded tracking-wider uppercase">
                   SIKKIM
                 </span>
               </div>
             </div>
             {isAdminPage && (
-              <span className="text-[10px] font-bold tracking-wider uppercase bg-[#0f2547] text-[#f5a623] px-2 py-0.5 rounded-full border border-amber-400/30">
+              <span className="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase bg-[#0f2547] text-[#f5a623] px-1.5 sm:px-2 py-0.5 rounded-full border border-amber-400/30 shrink-0">
                 Admin
               </span>
             )}
@@ -281,15 +280,6 @@ export default function Navbar() {
             ) : isAdminPage ? (
               /* Admin on Admin Page */
               <>
-                <Link
-                  to="/"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs lg:text-sm font-semibold text-slate-700 hover:text-[#0f2547] hover:bg-slate-100/80 border border-slate-200/80 bg-white transition-all shadow-xs"
-                  title="View Public Site"
-                >
-                  <Globe size={14} className="text-[#f5a623]" />
-                  <span className="hidden sm:inline">Live Site</span>
-                </Link>
-
                 {/* Admin Profile Dropdown */}
                 <div className="relative profile-dropdown-container">
                   <button
@@ -337,37 +327,6 @@ export default function Navbar() {
                         >
                           <LayoutDashboard size={15} className="text-[#f5a623]" />
                           Dashboard
-                        </Link>
-                        <Link
-                          to="/admin/pending"
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
-                        >
-                          <span className="flex items-center gap-2.5">
-                            <Clock size={15} className="text-[#f5a623]" />
-                            Pending Approvals
-                          </span>
-                          {pendingCount > 0 && (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                              {pendingCount}
-                            </span>
-                          )}
-                        </Link>
-                        <Link
-                          to="/saved-pgs"
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
-                        >
-                          <Heart size={15} className="text-[#f5a623]" />
-                          Saved PGs
-                        </Link>
-                        <Link
-                          to="/"
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:text-[#0f2547] hover:bg-slate-50 transition-colors"
-                        >
-                          <Globe size={15} className="text-[#f5a623]" />
-                          View Public Site
                         </Link>
                       </div>
                       <div className="pt-1">
@@ -533,7 +492,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile menu button & quick actions */}
-          <div className="flex items-center gap-1.5 md:hidden">
+          <div className="flex items-center gap-1 sm:gap-1.5 md:hidden">
             {currentUser && (
               <>
                 <Link
@@ -632,13 +591,6 @@ export default function Navbar() {
                     </p>
                   </div>
                 </div>
-                <Link
-                  to="/"
-                  onClick={() => setMobileOpen(false)}
-                  className="text-xs font-semibold text-[#0f2547] hover:text-[#f5a623] flex items-center gap-1 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200"
-                >
-                  <Globe size={13} className="text-[#f5a623]" /> Live Site
-                </Link>
               </div>
 
               <div className="px-3 py-3 space-y-1">

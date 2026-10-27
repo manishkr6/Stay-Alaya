@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Check, X, ChevronDown, ChevronUp, Home, Trash2, AlertTriangle, Info, CheckCircle2, RefreshCw, UserCheck, UserX, FileText, ExternalLink, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../hooks/useData';
@@ -7,9 +7,12 @@ import StatusPill from '../../components/ui/StatusPill';
 import { extractDocUrl } from '../../utils/avatarHelper';
 
 export default function AdminPending() {
-  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users, fetchAdminData, approveOwner, rejectOwner } = useData();
+  const { pgs, approvePG, rejectPG, approveDeletePG, rejectDeletePG, users, fetchAdminData, approveOwner, rejectOwner, changeUserRole } = useData();
   const [expanded, setExpanded] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [kycTab, setKycTab] = useState('all'); // 'all' | 'pending' | 'approved'
+  const [revokeModal, setRevokeModal] = useState(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   // Always fetch latest data on mount
   useEffect(() => {
@@ -48,7 +51,38 @@ export default function AdminPending() {
   const [legacyRejectModal, setLegacyRejectModal] = useState(null);
   const [legacyRejectReason, setLegacyRejectReason] = useState('');
 
-  const pendingOwners = users.filter((u) => u.ownerRequestStatus === 'pending');
+  // 1. Pending owner KYC applications awaiting admin action
+  const pendingOwners = useMemo(() => {
+    return (users || []).filter((u) => u.ownerRequestStatus === 'pending');
+  }, [users]);
+
+  // 2. Approved & Stored KYC Owner records (owners who were verified or have KYC records stored)
+  const approvedOwners = useMemo(() => {
+    return (users || []).filter((u) => {
+      const isOwner = u.role === 'owner';
+      const isVerified = u.kyc_status === 'verified' || u.ownerRequestStatus === 'approved';
+      const hasDocs = Boolean(u.kyc_doc_url || u.propertyDocumentUrl || u.kyc_id_doc_url || u.identityDocumentUrl);
+      return (isVerified || (isOwner && hasDocs) || isOwner) && u.ownerRequestStatus !== 'pending';
+    });
+  }, [users]);
+
+  // 3. All KYC records (pending first, then approved)
+  const allKycOwners = useMemo(() => {
+    const list = [...pendingOwners];
+    approvedOwners.forEach((ao) => {
+      if (!list.some((po) => String(po.id) === String(ao.id))) {
+        list.push(ao);
+      }
+    });
+    return list;
+  }, [pendingOwners, approvedOwners]);
+
+  const displayedKycOwners = useMemo(() => {
+    if (kycTab === 'pending') return pendingOwners;
+    if (kycTab === 'approved') return approvedOwners;
+    return allKycOwners;
+  }, [kycTab, pendingOwners, approvedOwners, allKycOwners]);
+
   const deletePGs = pgs.filter(p => p.status === 'pending_delete' && !p.isDeleted);
   const newPGs = pgs.filter(p => p.status === 'pending' && !p.isDeleted);
   const updatePGs = pgs.filter(p => p.status === 'pending_update' && !p.isDeleted);
@@ -60,7 +94,7 @@ export default function AdminPending() {
     setApprovingOwnerId(userId);
     try {
       await approveOwner(userId);
-      toast.success(`Owner request for "${userName || 'User'}" approved!`);
+      toast.success(`Owner request for "${userName || 'User'}" approved & stored in verified records!`);
       setConfirmApproveModal(null);
       await fetchAdminData?.();
     } catch (e) {
@@ -68,6 +102,22 @@ export default function AdminPending() {
       toast.error(e?.message || 'Failed to approve owner request');
     } finally {
       setApprovingOwnerId(null);
+    }
+  };
+
+  const handleRevokeOwner = async () => {
+    if (!revokeModal?.userId) return;
+    setIsRevoking(true);
+    try {
+      await changeUserRole(revokeModal.userId, 'student');
+      toast.success(`Owner role for "${revokeModal.userName}" revoked. Reverted to Student.`);
+      setRevokeModal(null);
+      await fetchAdminData?.();
+    } catch (e) {
+      console.error('Failed to revoke owner access:', e);
+      toast.error(e?.message || 'Failed to revoke owner role');
+    } finally {
+      setIsRevoking(false);
     }
   };
 
@@ -178,43 +228,159 @@ export default function AdminPending() {
         </div>
       </div>
 
-      {/* SECTION: Pending Owner Requests (KYC) */}
+      {/* SECTION: Owner Requests & Stored KYC Records */}
       <div>
-        <div className="flex items-center justify-between gap-2.5 mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5 sm:mb-4">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={18} className="text-purple-600" />
-            <h2 className="font-semibold text-slate-900 text-base sm:text-lg">Pending Owner Requests (KYC)</h2>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-semibold text-slate-900 text-base sm:text-lg">
+                  Owner Requests & KYC Verification
+                </h2>
+                {pendingOwners.length > 0 ? (
+                  <span className="bg-purple-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs animate-pulse">
+                    {pendingOwners.length} Pending
+                  </span>
+                ) : (
+                  <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                    {approvedOwners.length} Verified & Stored
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-500 text-xs">
+                Review owner KYC applications. Approved owners and verification documents are stored permanently.
+              </p>
+            </div>
           </div>
-          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
-            pendingOwners.length > 0 ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {pendingOwners.length}
-          </span>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0 self-start sm:self-auto overflow-x-auto max-w-full">
+            <button
+              type="button"
+              onClick={() => setKycTab('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                kycTab === 'all'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All Records ({allKycOwners.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setKycTab('pending')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                kycTab === 'pending'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Pending</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  kycTab === 'pending'
+                    ? 'bg-white text-purple-700'
+                    : pendingOwners.length > 0
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {pendingOwners.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setKycTab('approved')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                kycTab === 'approved'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Approved / Stored</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  kycTab === 'approved'
+                    ? 'bg-white text-emerald-700'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                {approvedOwners.length}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {pendingOwners.length === 0 ? (
+        {/* Content list or empty state */}
+        {displayedKycOwners.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center shadow-xs">
             <CheckCircle2 size={30} className="mx-auto text-emerald-400 mb-2" />
-            <p className="text-slate-600 font-medium text-sm">No pending owner requests</p>
-            <p className="text-slate-400 text-xs mt-0.5">All owner KYC applications have been reviewed.</p>
+            <p className="text-slate-700 font-semibold text-sm">
+              {kycTab === 'pending'
+                ? 'No pending owner requests'
+                : kycTab === 'approved'
+                ? 'No approved owner KYC records found'
+                : 'No owner KYC records found'}
+            </p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              {kycTab === 'pending'
+                ? 'All owner KYC applications have been reviewed.'
+                : 'Approved owner KYC applications and documents will appear here.'}
+            </p>
+            {kycTab === 'pending' && approvedOwners.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setKycTab('approved')}
+                className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold border border-purple-200 transition-colors cursor-pointer"
+              >
+                <ShieldCheck size={14} /> View {approvedOwners.length} Stored & Verified KYC Records
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-4">
-            {pendingOwners.map((u) => {
+          <div className="space-y-3.5">
+            {displayedKycOwners.map((u) => {
+              const isPending = u.ownerRequestStatus === 'pending';
               const details = u.ownerRequestDetails || {};
               const userAvatar = u.avatar || u.avatar_url || '';
-              const propDoc = extractDocUrl(u.kyc_doc_url || u.propertyDocumentUrl || details.propertyDocumentUrl, userAvatar);
-              const idDoc = extractDocUrl(u.kyc_id_doc_url || u.identityDocumentUrl || details.identityDocumentUrl, userAvatar);
+              const propDoc = extractDocUrl(
+                u.kyc_doc_url || u.propertyDocumentUrl || details.propertyDocumentUrl,
+                userAvatar
+              );
+              const idDoc = extractDocUrl(
+                u.kyc_id_doc_url || u.identityDocumentUrl || details.identityDocumentUrl,
+                userAvatar
+              );
               const hasDocs = Boolean(propDoc || idDoc);
 
               return (
-                <div key={u.id} className="bg-white rounded-2xl border-2 border-purple-200/80 shadow-xs overflow-hidden">
+                <div
+                  key={u.id}
+                  className={`bg-white rounded-2xl border-2 shadow-xs overflow-hidden transition-all ${
+                    isPending
+                      ? 'border-purple-200/90 hover:border-purple-300'
+                      : 'border-emerald-200/80 hover:border-emerald-300'
+                  }`}
+                >
                   <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                       {/* Avatar */}
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden border border-purple-200">
+                      <div
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden border ${
+                          isPending
+                            ? 'bg-purple-100 text-purple-700 border-purple-200'
+                            : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
                         {u.avatar || u.avatar_url ? (
-                          <img src={u.avatar || u.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={u.avatar || u.avatar_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           u.name?.charAt(0)?.toUpperCase() || 'U'
                         )}
@@ -226,28 +392,55 @@ export default function AdminPending() {
                           <h3 className="font-semibold text-slate-900 text-base truncate">
                             {u.name}
                           </h3>
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
-                            Pending Owner Approval
-                          </span>
+                          {isPending ? (
+                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 animate-pulse">
+                              Pending Owner Approval
+                            </span>
+                          ) : (
+                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle2 size={11} className="text-emerald-600" />
+                              Verified Owner · Stored KYC
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-slate-500 flex items-center gap-3 flex-wrap">
-                          <span>Email: <span className="text-slate-700 font-medium">{u.email}</span></span>
-                          {u.phone && <span>· Phone: <span className="text-slate-700 font-medium">{u.phone}</span></span>}
+                          <span>
+                            Email: <span className="text-slate-700 font-medium">{u.email}</span>
+                          </span>
+                          {u.phone && (
+                            <span>
+                              · Phone: <span className="text-slate-700 font-medium">{u.phone}</span>
+                            </span>
+                          )}
                           {details.requestedAt && (
-                            <span className="text-slate-400">· Applied: {new Date(details.requestedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <span className="text-slate-400">
+                              · Applied:{' '}
+                              {new Date(details.requestedAt).toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          )}
+                          {!isPending && (
+                            <span className="text-emerald-700 font-medium">
+                              · Role: Verified Owner
+                            </span>
                           )}
                         </div>
 
                         {/* Document inspection links */}
                         <div className="pt-2 flex items-center gap-2.5 flex-wrap">
-                          <span className="text-xs font-semibold text-slate-600">Documents:</span>
+                          <span className="text-xs font-semibold text-slate-600">
+                            Verification Documents:
+                          </span>
                           {propDoc ? (
                             <a
                               href={propDoc}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold cursor-pointer transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
                             >
                               <FileText size={12} /> Property Doc <ExternalLink size={10} />
                             </a>
@@ -258,15 +451,17 @@ export default function AdminPending() {
                               href={idDoc}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold cursor-pointer transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
                             >
                               <FileText size={12} /> Identity Doc <ExternalLink size={10} />
                             </a>
                           ) : null}
 
                           {!hasDocs && (
-                            <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                              No documents uploaded (Properties will list as Unverified upon approval)
+                            <span className="text-xs text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-200">
+                              {isPending
+                                ? 'No documents uploaded (Properties will list as Unverified upon approval)'
+                                : 'Approved without documents (Properties unverified)'}
                             </span>
                           )}
                         </div>
@@ -275,25 +470,58 @@ export default function AdminPending() {
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-                      <button
-                        type="button"
-                        disabled={approvingOwnerId === u.id || isRejectingOwner}
-                        onClick={() => setConfirmApproveModal({ userId: u.id, userName: u.name, hasDocs })}
-                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                      >
-                        <UserCheck size={14} /> Approve Owner
-                      </button>
-                      <button
-                        type="button"
-                        disabled={approvingOwnerId === u.id || isRejectingOwner}
-                        onClick={() => {
-                          setRejectOwnerModal({ userId: u.id, userName: u.name });
-                          setRejectOwnerReason('');
-                        }}
-                        className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                      >
-                        <UserX size={14} /> Decline
-                      </button>
+                      {isPending ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={approvingOwnerId === u.id || isRejectingOwner}
+                            onClick={() =>
+                              setConfirmApproveModal({
+                                userId: u.id,
+                                userName: u.name,
+                                hasDocs,
+                              })
+                            }
+                            className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                          >
+                            <UserCheck size={14} /> Approve Owner
+                          </button>
+                          <button
+                            type="button"
+                            disabled={approvingOwnerId === u.id || isRejectingOwner}
+                            onClick={() => {
+                              setRejectOwnerModal({
+                                userId: u.id,
+                                userName: u.name,
+                              });
+                              setRejectOwnerReason('');
+                            }}
+                            className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            <UserX size={14} /> Decline
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                          <span className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold shadow-2xs">
+                            <CheckCircle2 size={13} className="text-emerald-600" />
+                            Approved & Stored
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRevokeModal({
+                                userId: u.id,
+                                userName: u.name,
+                              })
+                            }
+                            className="flex-1 md:flex-initial flex items-center justify-center gap-1 px-3 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/80 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                            title="Revoke owner status and revert to student"
+                          >
+                            <UserX size={13} /> Revoke
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -579,6 +807,29 @@ export default function AdminPending() {
           placeholder="e.g. Identity document unclear, property verification failed..."
           className="input-field resize-none text-sm w-full"
         />
+      </Modal>
+
+      {/* Modal: Revoke Owner Access */}
+      <Modal
+        isOpen={!!revokeModal}
+        onClose={() => setRevokeModal(null)}
+        title="Revoke Owner Access"
+        onConfirm={handleRevokeOwner}
+        confirmText={isRevoking ? "Revoking..." : "Revoke to Student"}
+        confirmVariant="danger"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-700">
+            Are you sure you want to revoke owner access for{" "}
+            <span className="font-semibold text-slate-900">
+              "{revokeModal?.userName}"
+            </span>
+            ?
+          </p>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This will change the user's role back to Student / User. Their uploaded KYC verification documents will remain stored in the records, but their owner privileges will be revoked.
+          </p>
+        </div>
       </Modal>
     </div>
   );

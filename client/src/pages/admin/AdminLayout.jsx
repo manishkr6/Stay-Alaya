@@ -20,7 +20,7 @@ export default function AdminLayout() {
     )?.label || "Dashboard";
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 sm:pt-24 pb-12 sm:pb-16">
+    <div className="min-h-screen bg-slate-50 pt-[100px] sm:pt-28 pb-12 sm:pb-16">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-3.5 sm:mb-6">
