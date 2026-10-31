@@ -239,28 +239,56 @@ export async function parseSearchQueryWithAI(userQuery) {
   if (apiKey) {
     try {
       const ai = getAiClient();
-      const prompt = `Extract structured PG search filters from this user search query: "${userQuery}".
+      const prompt = `You are the specialized AI Filter Extraction Engine for 'Stay Aalaya' (Sikkim PG Finder), India.
+Extract structured search parameters from this user search query: "${userQuery}".
 
-Important Sikkim Campus & Landmark Mappings:
-- "ICFAI University", "ICFAI", "ICFAI Sikkim", "Ranka Road" -> Map to location: "Gangtok"
-- "SMIT", "Manipal", "Sikkim Manipal", "Majitar Campus" -> Map to location: "Majitar"
-- "SMIMS", "Manipal Medical", "CRH Hospital", "Tadong" -> Map to location: "Tadong"
-- "Sikkim University", "SU", "5th Mile", "6th Mile" -> Map to location: "5th Mile"
-- "Ropeway", "Deorali", "Deorali Taxi Stand" -> Map to location: "Deorali"
-- "MG Marg", "Mall Road", "Central Gangtok", "Gangtok" -> Map to location: "MG Marg" or "Gangtok"
-- "Namchi", "Singtam", "Rangpo", "Ravangla", "Jorethang" -> Map to their respective town.
+CRITICAL INSTRUCTIONS & HINGLISH RULES:
+1. BUDGET PARSING:
+   - "k" = thousands (e.g. "5k" = 5000, "7.5k" = 7500).
+   - "maxPrice" (Upper bound): "se kam", "tak", "under", "ke andar", "ke under", "upto", "less than", "budget of", "within"
+   - "minPrice" (Lower bound): "se jyada", "se upar", "above", "plus", "starting from", "more than", "at least"
+   - Range: "4k se 7k tak" -> minPrice: 4000, maxPrice: 7000.
 
-Allowed location values: "Gangtok", "Tadong", "Majitar", "Deorali", "5th Mile", "MG Marg", "Singtam", "Namchi", "Rangpo", "Jorethang", "Ravangla" or null if no location or landmark is mentioned.
-Available room types: "Single", "Double", "Triple", null
-Available genders: "Boys", "Girls", "Co-ed", null
-Available amenities: "WiFi", "Food", "AC", "Parking", "Laundry", "CCTV", "Water", "Gym"
+2. GENDER NORMALIZATION (Strict lowercase: "boys" | "girls" | "co-ed" | null):
+   - "boys": "boy", "boys", "ladko ke liye", "ladke", "male", "gents"
+   - "girls": "girl", "girls", "ladkiyo ke liye", "ladkiya", "female", "women", "ladies"
+   - "co-ed": "coed", "co-ed", "co ed", "co_ed", "unisex", "dono", "mixed"
+
+3. ROOM TYPE (Strict lowercase: "single" | "double" | "triple" | null):
+   - "single": "1 room", "single", "private", "1 sharing"
+   - "double": "2 room", "double", "twin sharing", "2 sharing"
+   - "triple": "3 room", "triple", "3 sharing"
+
+4. AMENITIES:
+   - List of allowed amenities: "WiFi", "Food", "AC", "Water", "CCTV", "Laundry", "Parking", "Gym"
+   - "khana", "food", "mess" -> "Food"
+   - "pani", "garam pani", "geyser" -> "Water"
+   - "wifi", "internet" -> "WiFi"
+   - "laundry", "washing" -> "Laundry"
+
+5. SIKKIM LOCALITIES:
+   - "ICFAI", "ICFAI University" -> "Gangtok"
+   - "SMIT", "Majitar" -> "Majitar"
+   - "SMIMS", "CRH", "Tadong" -> "Tadong"
+   - "Sikkim University", "5th Mile", "6th Mile" -> "5th Mile"
+   - "Deorali", "Ropeway" -> "Deorali"
+   - "Paljor Stadium" -> "Paljor Stadium"
+   - "MG Marg" -> "MG Marg"
+   - "Namchi", "Singtam", "Rangpo" -> respective town.
+
+FEW-SHOT EXAMPLES:
+- "Tadong me boys pg chahiye 6000 tak khana aur wifi ke sath" -> {"location": "Tadong", "minPrice": null, "maxPrice": 6000, "gender": "boys", "roomType": null, "amenities": ["Food", "WiFi"]}
+- "ICFAI ke pass girls PG 4k se 7k ke beech geyser aur laundry" -> {"location": "Gangtok", "minPrice": 4000, "maxPrice": 7000, "gender": "girls", "roomType": null, "amenities": ["Water", "Laundry"]}
+- "Majitar SMIT single room coed with wifi 8000 se kam" -> {"location": "Majitar", "minPrice": null, "maxPrice": 8000, "gender": "co-ed", "roomType": "single", "amenities": ["WiFi"]}
+- "5th Mile 5000 se jyada double sharing with parking" -> {"location": "5th Mile", "minPrice": 5000, "maxPrice": null, "gender": null, "roomType": "double", "amenities": ["Parking"]}
 
 Respond ONLY with valid JSON in this exact structure:
 {
   "location": string or null,
+  "minPrice": number or null,
   "maxPrice": number or null,
-  "roomType": "Single" | "Double" | "Triple" | null,
-  "genderPreference": "Boys" | "Girls" | "Co-ed" | null,
+  "roomType": "single" | "double" | "triple" | null,
+  "gender": "boys" | "girls" | "co-ed" | null,
   "amenities": string[]
 }`;
 
@@ -274,6 +302,7 @@ Respond ONLY with valid JSON in this exact structure:
       const parsed = JSON.parse(response.text);
       return {
         ...parsed,
+        genderPreference: parsed.gender || parsed.genderPreference || null,
         isAi: true,
       };
     } catch (err) {
@@ -281,16 +310,33 @@ Respond ONLY with valid JSON in this exact structure:
     }
   }
 
-  // Fallback regex parser
+  // Fallback regex parser with Hinglish support
   const q = userQuery.toLowerCase();
   let maxPrice = null;
-  const priceMatch = q.match(/(?:under|below|max|budget)\s*₹?\s*([\d,]+)(?:k)?/i) || q.match(/(\d+)k/i);
-  if (priceMatch) {
-    const cleanStr = priceMatch[1].replace(/,/g, '');
+  let minPrice = null;
+
+  // Max price detection: "under 6000", "6000 tak", "6k se kam", "below 7000"
+  const maxMatch = q.match(/(?:under|below|max|budget of|se kam|ke andar|tak)\s*₹?\s*([\d,]+)(?:k)?/i) ||
+                   q.match(/₹?\s*([\d,]+)(?:k)?\s*(?:tak|se kam|ke andar)/i) ||
+                   q.match(/(\d+)k\s*(?:tak|se kam)?/i);
+  if (maxMatch) {
+    const cleanStr = maxMatch[1].replace(/,/g, '');
     let num = parseInt(cleanStr, 10);
     if (!isNaN(num)) {
       if (q.includes(`${num}k`)) num *= 1000;
       maxPrice = num;
+    }
+  }
+
+  // Min price detection: "above 4000", "4000 se jyada", "4k plus", "starting from 5000"
+  const minMatch = q.match(/(?:above|more than|starting from|minimum|se jyada|se upar|plus)\s*₹?\s*([\d,]+)(?:k)?/i) ||
+                   q.match(/₹?\s*([\d,]+)(?:k)?\s*(?:se jyada|se upar|plus)/i);
+  if (minMatch) {
+    const cleanStr = minMatch[1].replace(/,/g, '');
+    let num = parseInt(cleanStr, 10);
+    if (!isNaN(num)) {
+      if (q.includes(`${num}k`)) num *= 1000;
+      minPrice = num;
     }
   }
 
@@ -330,7 +376,7 @@ Respond ONLY with valid JSON in this exact structure:
   let genderPreference = null;
   if (q.includes('girl') || q.includes('female')) genderPreference = 'Girls';
   else if (q.includes('boy') || q.includes('male')) genderPreference = 'Boys';
-  else if (q.includes('co-ed') || q.includes('unisex')) genderPreference = 'Co-ed';
+  else if (q.includes('co-ed') || q.includes('coed') || q.includes('co ed') || q.includes('co_ed') || q.includes('unisex')) genderPreference = 'Co-ed';
 
   let roomType = null;
   if (q.includes('single')) roomType = 'Single';

@@ -252,6 +252,8 @@ export function DataProvider({ children }) {
           }
         : null,
       isBlocked: !!u.is_blocked,
+      owner_form_submitted: Boolean(u.owner_form_submitted),
+      admin_approved: Boolean(u.admin_approved),
       lastSignIn: u.last_sign_in_at || u.updated_at || u.created_at,
       createdAt: u.created_at,
     };
@@ -741,6 +743,12 @@ export function DataProvider({ children }) {
       if (user?.id) {
         await fetchSavedPgs();
         await fetchNotifications();
+      } else {
+        // Complete guest reset: clear any cached owner/user state
+        setOwnerPgs([]);
+        setSavedPgs([]);
+        setNotifications([]);
+        setUsers([]);
       }
     })();
 
@@ -1371,6 +1379,8 @@ export function DataProvider({ children }) {
             ? {
                 ...u,
                 role: 'owner',
+                owner_form_submitted: true,
+                admin_approved: true,
                 kyc_status: hasDocs ? 'verified' : 'unsubmitted',
                 ownerRequestStatus: 'approved',
               }
@@ -1384,6 +1394,8 @@ export function DataProvider({ children }) {
         .from('profiles')
         .update({
           role: 'owner',
+          admin_approved: true,
+          owner_form_submitted: true,
           kyc_status: hasDocs ? 'verified' : 'unsubmitted',
           updated_at: new Date().toISOString(),
         })
@@ -1421,6 +1433,8 @@ export function DataProvider({ children }) {
             ? {
                 ...u,
                 role: 'student',
+                admin_approved: false,
+                owner_form_submitted: false,
                 kyc_status: 'rejected',
                 ownerRequestStatus: 'none',
               }
@@ -1434,6 +1448,8 @@ export function DataProvider({ children }) {
         .from('profiles')
         .update({
           role: 'student',
+          admin_approved: false,
+          owner_form_submitted: false,
           kyc_status: 'rejected',
           updated_at: new Date().toISOString(),
         })
@@ -1491,6 +1507,11 @@ export function DataProvider({ children }) {
           target?.kyc_doc_url
         );
         updates.kyc_status = hasDocs ? 'verified' : 'unsubmitted';
+        updates.admin_approved = true;
+        updates.owner_form_submitted = true;
+      } else {
+        updates.admin_approved = false;
+        updates.owner_form_submitted = false;
       }
       const { error } = await supabase
         .from('profiles')
@@ -1505,6 +1526,8 @@ export function DataProvider({ children }) {
             return {
               ...u,
               role: newRole,
+              admin_approved: newRole === 'owner',
+              owner_form_submitted: newRole === 'owner',
               ownerRequestStatus: newRole === 'owner' ? 'approved' : u.ownerRequestStatus,
             };
           }
@@ -1588,7 +1611,10 @@ export function DataProvider({ children }) {
       const updates = {
         full_name: fullName,
         phone: phoneNumber,
+        role: 'owner',
         kyc_status: 'pending',
+        owner_form_submitted: true,
+        admin_approved: false,
         kyc_doc_url: resolvedPropDoc,
         kyc_id_doc_url: resolvedIdDoc,
       };

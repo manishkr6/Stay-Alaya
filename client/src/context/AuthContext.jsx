@@ -49,69 +49,9 @@ export function AuthProvider({ children }) {
         console.error("Error fetching profile from Supabase:", error);
       }
 
-      // Check for Google OAuth metadata
-      const googleName =
-        sessionUser.user_metadata?.full_name ||
-        sessionUser.user_metadata?.name ||
-        "";
-      const googleAvatar =
-        sessionUser.user_metadata?.avatar_url ||
-        sessionUser.user_metadata?.picture ||
-        sessionUser.identities?.find((i) => i.identity_data?.avatar_url || i.identity_data?.picture)?.identity_data?.avatar_url ||
-        sessionUser.identities?.find((i) => i.identity_data?.avatar_url || i.identity_data?.picture)?.identity_data?.picture ||
-        "";
-
-      // If user row is missing from profiles, auto-create for OAuth users
+      // If user row is missing from profiles
       if (!profile) {
-        const isOAuth =
-          sessionUser.app_metadata?.provider === "google" ||
-          sessionUser.identities?.some((i) => i.provider === "google") ||
-          Boolean(googleAvatar);
-
-        if (isOAuth) {
-          const newProfile = {
-            id: sessionUser.id,
-            full_name: googleName || sessionUser.email?.split("@")[0] || "User",
-            email: sessionUser.email,
-            avatar_url: googleAvatar || "",
-            role: "student",
-            kyc_status: "unsubmitted",
-            is_blocked: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_sign_in_at: new Date().toISOString(),
-          };
-
-          const { data: upserted } = await supabase
-            .from("profiles")
-            .upsert(newProfile)
-            .select()
-            .maybeSingle();
-
-          profile = upserted || newProfile;
-        } else {
-          return { isDeleted: true };
-        }
-      } else {
-        // If profile exists, ensure Google name and avatar photo are auto-saved to database
-        const needsAvatarSync = !profile.avatar_url && Boolean(googleAvatar);
-        const needsNameSync = !profile.full_name && Boolean(googleName);
-        if (needsAvatarSync || needsNameSync) {
-          const syncUpdates = {
-            updated_at: new Date().toISOString(),
-          };
-          if (needsAvatarSync) syncUpdates.avatar_url = googleAvatar;
-          if (needsNameSync) syncUpdates.full_name = googleName;
-
-          supabase
-            .from("profiles")
-            .update(syncUpdates)
-            .eq("id", sessionUser.id)
-            .then(() => {})
-            .catch(() => {});
-
-          profile = { ...profile, ...syncUpdates };
-        }
+        return { isDeleted: true };
       }
 
       // If user has been blocked/banned by an administrator
@@ -151,8 +91,14 @@ export function AuthProvider({ children }) {
         kyc_status: profile.kyc_status || "unsubmitted",
         kyc_doc_url: profile.kyc_doc_url || "",
         kyc_id_doc_url: extractIdDoc(profile) || profile.kyc_id_doc_url || "",
+        owner_form_submitted: Boolean(profile.owner_form_submitted),
+        admin_approved: Boolean(profile.admin_approved),
         ownerRequestStatus:
-          profile.role === "owner" || profile.kyc_status === "verified"
+          profile.admin_approved
+            ? "approved"
+            : profile.owner_form_submitted
+            ? "pending"
+            : profile.role === "owner" || profile.kyc_status === "verified"
             ? "approved"
             : profile.kyc_status === "pending"
             ? "pending"
@@ -407,79 +353,19 @@ export function AuthProvider({ children }) {
     [fetchProfile]
   );
 
-  const loginWithGoogle = useCallback(async () => {
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
-      },
-    });
-    if (error) throw error;
-
-    if (data?.url) {
-      // Pre-check if Google OAuth endpoint is available before redirecting window
-      try {
-        const check = await fetch(data.url, { method: "GET" });
-        if (!check.ok) {
-          const json = await check.json().catch(() => null);
-          console.warn("Google OAuth service check:", json?.msg || json?.error_code || check.status);
-          const err = new Error("Google sign-in is temporarily unavailable. Please sign in with email.");
-          err.code = "AUTH_PROVIDER_UNAVAILABLE";
-          throw err;
-        }
-      } catch (err) {
-        if (err.code === "AUTH_PROVIDER_UNAVAILABLE") {
-          throw err;
-        }
-        // If fetch threw a cross-origin redirect error, that means Supabase accepted the request and forwarded to Google accounts!
-      }
-
-      // If checks pass, navigate window to Google OAuth
-      window.location.href = data.url;
-    }
-    return data;
-  }, []);
-
-  // Development helper to simulate Google OAuth login and auto-sync name and photo into Dashboard
-  const simulateGoogleSignIn = useCallback(async (customInfo = {}) => {
-    const simulatedId = "google-" + Date.now();
-    const mockGoogleUser = {
-      id: simulatedId,
-      email: customInfo.email || "manishkr786@gmail.com",
-      user_metadata: {
-        full_name: customInfo.name || "Manish Kumar",
-        name: customInfo.name || "Manish Kumar",
-        avatar_url:
-          customInfo.avatar ||
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-        picture:
-          customInfo.avatar ||
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-        provider: "google",
-      },
-      last_sign_in_at: new Date().toISOString(),
-    };
-
-    const profile = await fetchProfile(mockGoogleUser);
-    setCurrentUser(profile);
-    localStorage.setItem("sikkimpg_user", JSON.stringify(profile));
-    sessionStorage.setItem("stayaalaya_session_active", "true");
-    toast.success(`Welcome to Stay Aalaya, ${profile?.name?.split(" ")[0] || "User"}!`);
-    navigate("/dashboard?verified=true");
-    return profile;
-  }, [fetchProfile, navigate]);
-
   const logout = useCallback(async (redirectPath = "/") => {
-    await supabase.auth.signOut().catch(() => {});
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("Notice during supabase signOut:", e);
+    }
     setCurrentUser(null);
     localStorage.removeItem("sikkimpg_user");
-    if (redirectPath) navigate(redirectPath);
+    localStorage.removeItem("stayaalaya_remember_session");
+    sessionStorage.removeItem("stayaalaya_session_active");
+    if (redirectPath) {
+      navigate(redirectPath, { replace: true });
+    }
   }, [navigate]);
 
   const signup = useCallback(async (name, email, password, role = "student") => {
@@ -563,6 +449,9 @@ export function AuthProvider({ children }) {
       if (avatarVal !== undefined) {
         dbPayload.avatar_url = avatarVal || null;
       }
+      if (updates.owner_form_submitted !== undefined) {
+        dbPayload.owner_form_submitted = Boolean(updates.owner_form_submitted);
+      }
       if (updates.kyc_status !== undefined && updates.kyc_status !== 'unsubmitted') {
         dbPayload.kyc_status = updates.kyc_status;
       } else if (updates.ownerRequestStatus === 'pending') {
@@ -632,8 +521,6 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       login,
-      loginWithGoogle,
-      simulateGoogleSignIn,
       logout,
       signup,
       forgotPassword,
@@ -645,8 +532,6 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       login,
-      loginWithGoogle,
-      simulateGoogleSignIn,
       logout,
       signup,
       forgotPassword,

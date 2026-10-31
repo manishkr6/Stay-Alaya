@@ -61,10 +61,17 @@ export default function Navbar() {
       !p.isDeleted,
   ).length;
 
+  const isOwner = currentUser?.role === "owner";
+  const ownerHomePath = !currentUser?.owner_form_submitted
+    ? "/list-your-pg"
+    : !currentUser?.admin_approved
+    ? "/owner/pending"
+    : "/owner";
+  const logoPath = isOwner ? ownerHomePath : isAdminPage ? "/admin" : "/";
+
   const handleLogout = async () => {
     setProfileOpen(false);
-    await logout();
-    navigate("/");
+    await logout("/");
   };
 
   const roleLinks = {
@@ -105,12 +112,6 @@ export default function Navbar() {
       icon: Bell,
       badge: unreadCount,
     },
-    {
-      path: "/saved-pgs",
-      label: "Saved PGs",
-      icon: Heart,
-      badge: savedCount,
-    },
   ];
 
   const getNavLinkClass = (path, exact = false) => {
@@ -138,7 +139,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-14 sm:h-16 px-2.5 sm:px-6 gap-1.5 sm:gap-3">
           {/* Logo */}
           <Link
-            to="/"
+            to={logoPath}
             className="flex items-center gap-1.5 sm:gap-2 group px-0.5 sm:px-1 py-1 shrink-0"
           >
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-amber-400/40 shadow-xs bg-white">
@@ -213,7 +214,40 @@ export default function Navbar() {
                 );
               })}
             </div>
+          ) : isOwner ? (
+            /* Owner Navigation Silo */
+            <div className="hidden md:flex items-center gap-1.5 lg:gap-2">
+              {!currentUser?.owner_form_submitted ? (
+                <Link
+                  to="/list-your-pg"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs hover:bg-amber-100 transition-all"
+                >
+                  <Plus size={15} className="text-amber-600 stroke-[3]" />
+                  <span>Submit Host Onboarding</span>
+                </Link>
+              ) : !currentUser?.admin_approved ? (
+                <Link
+                  to="/owner/pending"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs hover:bg-amber-100 transition-all"
+                >
+                  <Clock size={15} className="text-amber-600 animate-pulse" />
+                  <span>Approval Pending Review</span>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/owner" className={getNavLinkClass("/owner", true)}>
+                    <LayoutDashboard size={15} className="text-[#f5a623]" />
+                    <span className="whitespace-nowrap">My Dashboard</span>
+                  </Link>
+                  <Link to="/owner/add" className={getNavLinkClass("/owner/add")}>
+                    <Plus size={15} className="text-[#f5a623] stroke-[3]" />
+                    <span className="whitespace-nowrap">Add PG</span>
+                  </Link>
+                </>
+              )}
+            </div>
           ) : (
+            /* Student / Guest Navigation */
             <div className="hidden md:flex items-center gap-1 lg:gap-2">
               <Link to="/" className={getNavLinkClass("/", true)}>
                 <Home
@@ -254,29 +288,22 @@ export default function Navbar() {
           {/* Right Side */}
           <div className="hidden md:flex items-center gap-2.5 shrink-0">
             {!isAuthenticated || isAuthPage ? (
-              <>
-                <Link
-                  to="/login"
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                    location.pathname === "/login"
-                      ? "bg-[#0f2547] text-[#f5a623] shadow-xs"
-                      : "text-slate-700 hover:text-[#0f2547] hover:bg-slate-100/80"
+              <Link
+                to="/login"
+                className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${
+                  location.pathname === "/login"
+                    ? "bg-[#0f2547] text-[#f5a623] shadow-xs border border-amber-400/30"
+                    : "bg-[#f5a623] hover:bg-[#e09618] text-[#0f2547]"
+                }`}
+              >
+                <LogIn
+                  size={15}
+                  className={`shrink-0 transition-colors ${
+                    location.pathname === "/login" ? "text-[#f5a623]" : "text-[#0f2547]"
                   }`}
-                >
-                  <LogIn size={15} className="text-[#f5a623]" />
-                  <span>Log In</span>
-                </Link>
-                <Link
-                  to="/signup"
-                  className={`inline-flex items-center justify-center px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${
-                    location.pathname === "/signup"
-                      ? "bg-[#0f2547] text-[#f5a623] shadow-xs border border-amber-400/30"
-                      : "bg-[#f5a623] hover:bg-[#e09618] text-[#0f2547]"
-                  }`}
-                >
-                  Sign Up
-                </Link>
-              </>
+                />
+                <span>Log In</span>
+              </Link>
             ) : isAdminPage ? (
               /* Admin on Admin Page */
               <>
@@ -344,7 +371,7 @@ export default function Navbar() {
             ) : (
               /* Authenticated on public / normal pages */
               <>
-                {currentUser && (
+                {currentUser && currentUser.role !== "admin" && (
                   <Link
                     to="/saved-pgs"
                     title="Saved PGs"
@@ -594,9 +621,7 @@ export default function Navbar() {
               </div>
 
               <div className="px-3 py-3 space-y-1">
-                {adminNavItems
-                  .filter((item) => item.path !== "/saved-pgs")
-                  .map((item) => {
+                {adminNavItems.map((item) => {
                   const active = item.exact
                     ? location.pathname === item.path
                     : location.pathname.startsWith(item.path);
@@ -705,44 +730,90 @@ export default function Navbar() {
               )}
 
               <div className="px-3 py-3 space-y-1">
-                <Link to="/" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/", true)}>
-                  <Home size={16} className="text-[#f5a623]" /> Home
-                </Link>
-                <Link to="/about" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/about")}>
-                  <Info size={16} className="text-[#f5a623]" /> About Us
-                </Link>
-                <Link to="/find-pg" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/find-pg")}>
-                  <Sparkles size={16} className="text-[#f5a623]" />
-                  <span className="flex items-center gap-1.5">
-                    <span>Find PG</span>
-                    <span className="bg-[#f5a623] text-[#0f2547] text-[9.5px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
-                      AI
-                    </span>
-                  </span>
-                </Link>
-                <Link
-                  to="/list-your-pg"
-                  onClick={() => setMobileOpen(false)}
-                  className={getNavLinkClass("/list-your-pg")}
-                >
-                  <Plus size={16} className="text-[#f5a623] stroke-[3]" /> List PG
-                </Link>
+                {isOwner ? (
+                  /* Owner Mobile Navigation */
+                  <>
+                    {!currentUser?.owner_form_submitted ? (
+                      <Link
+                        to="/list-your-pg"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-sm bg-amber-50 text-amber-900 border border-amber-300"
+                      >
+                        <Plus size={16} className="text-amber-600 stroke-[3]" /> Submit Host Onboarding
+                      </Link>
+                    ) : !currentUser?.admin_approved ? (
+                      <Link
+                        to="/owner/pending"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-sm bg-amber-50 text-amber-900 border border-amber-300"
+                      >
+                        <Clock size={16} className="text-amber-600 animate-pulse" /> Application Pending
+                      </Link>
+                    ) : (
+                      <>
+                        <Link
+                          to="/owner"
+                          onClick={() => setMobileOpen(false)}
+                          className={getNavLinkClass("/owner", true)}
+                        >
+                          <LayoutDashboard size={16} className="text-[#f5a623]" /> My Dashboard
+                        </Link>
+                        <Link
+                          to="/owner/add"
+                          onClick={() => setMobileOpen(false)}
+                          className={getNavLinkClass("/owner/add")}
+                        >
+                          <Plus size={16} className="text-[#f5a623] stroke-[3]" /> Add PG
+                        </Link>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  /* Student / Guest Mobile Navigation */
+                  <>
+                    <Link to="/" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/", true)}>
+                      <Home size={16} className="text-[#f5a623]" /> Home
+                    </Link>
+                    <Link to="/about" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/about")}>
+                      <Info size={16} className="text-[#f5a623]" /> About Us
+                    </Link>
+                    <Link to="/find-pg" onClick={() => setMobileOpen(false)} className={getNavLinkClass("/find-pg")}>
+                      <Sparkles size={16} className="text-[#f5a623]" />
+                      <span className="flex items-center gap-1.5">
+                        <span>Find PG</span>
+                        <span className="bg-[#f5a623] text-[#0f2547] text-[9.5px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                          AI
+                        </span>
+                      </span>
+                    </Link>
+                    <Link
+                      to="/list-your-pg"
+                      onClick={() => setMobileOpen(false)}
+                      className={getNavLinkClass("/list-your-pg")}
+                    >
+                      <Plus size={16} className="text-[#f5a623] stroke-[3]" /> List PG
+                    </Link>
+                  </>
+                )}
 
                 {!isAuthenticated || isAuthPage ? (
-                  <div className="flex gap-2 pt-3">
+                  <div className="pt-3">
                     <Link
                       to="/login"
                       onClick={() => setMobileOpen(false)}
-                      className="flex-1 text-center py-2.5 text-sm font-semibold border border-slate-200 text-slate-700 rounded-full hover:bg-slate-50"
+                      className={`inline-flex items-center justify-center gap-2 w-full text-center py-2.5 text-sm font-bold rounded-full transition-all shadow-sm ${
+                        location.pathname === "/login"
+                          ? "bg-[#0f2547] text-[#f5a623] border border-amber-400/30"
+                          : "bg-[#f5a623] text-[#0f2547] hover:bg-[#e09618]"
+                      }`}
                     >
-                      Login
-                    </Link>
-                    <Link
-                      to="/signup"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex-1 text-center py-2.5 text-sm font-bold bg-[#f5a623] text-[#0f2547] rounded-full hover:bg-[#e09618]"
-                    >
-                      Sign Up
+                      <LogIn
+                        size={16}
+                        className={`shrink-0 ${
+                          location.pathname === "/login" ? "text-[#f5a623]" : "text-[#0f2547]"
+                        }`}
+                      />
+                      <span>Log In</span>
                     </Link>
                   </div>
                 ) : (

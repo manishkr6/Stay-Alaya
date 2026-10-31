@@ -3,6 +3,16 @@ import { useEffect } from 'react';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
 import { ProtectedRoute } from './components/shared/index.jsx';
+import { useAuth } from './hooks/useAuth';
+
+// Role Guards & Traps
+import {
+  OwnerTrapGuard,
+  OwnerRoute,
+  OwnerOnboardingGuard,
+  OwnerPendingGuard,
+  StudentOnlyGuard,
+} from './components/auth/RoleGuards.jsx';
 
 // Pages
 import Home from './pages/Home.jsx';
@@ -27,6 +37,7 @@ import AalayaAIAssistant from './components/ai/AalayaAIAssistant.jsx';
 import OwnerDashboard from './pages/owner/OwnerDashboard.jsx';
 import AddPG from './pages/owner/AddPG.jsx';
 import EditPG from './pages/owner/EditPG.jsx';
+import OwnerPending from './pages/owner/OwnerPending.jsx';
 
 // Admin pages
 import AdminLayout from './pages/admin/AdminLayout.jsx';
@@ -49,8 +60,11 @@ const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/forgot-password', '/re
 
 function AppLayout({ children }) {
   const { pathname } = useLocation();
+  const { currentUser } = useAuth();
   const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p));
   const isAuth = AUTH_PATHS.some((p) => pathname.startsWith(p));
+  const isOwner = currentUser?.role === 'owner';
+  const isOwnerPending = pathname === '/owner/pending';
 
   if (isAdmin) {
     return (
@@ -65,8 +79,8 @@ function AppLayout({ children }) {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">{children}</main>
-      {!isAuth && <Footer />}
-      <AalayaAIAssistant />
+      {!isAuth && !isOwnerPending && <Footer />}
+      {!isAdmin && !isOwner && !isOwnerPending && <AalayaAIAssistant />}
     </div>
   );
 }
@@ -91,11 +105,41 @@ export default function App() {
       <ScrollToTop />
       <AppLayout>
         <Routes>
-          {/* Public */}
-          <Route path="/" element={<Home />} />
-          <Route path="/find-pg" element={<FindPG />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/pg/:id" element={<PGDetails />} />
+          {/* Public & Student Browsing (Guarded against Owner leak) */}
+          <Route
+            path="/"
+            element={
+              <OwnerTrapGuard>
+                <Home />
+              </OwnerTrapGuard>
+            }
+          />
+          <Route
+            path="/find-pg"
+            element={
+              <OwnerTrapGuard>
+                <FindPG />
+              </OwnerTrapGuard>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <OwnerTrapGuard>
+                <About />
+              </OwnerTrapGuard>
+            }
+          />
+          <Route
+            path="/pg/:id"
+            element={
+              <OwnerTrapGuard>
+                <PGDetails />
+              </OwnerTrapGuard>
+            }
+          />
+
+          {/* Unified Authentication */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<OtpVerification />} />
@@ -103,63 +147,84 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/list-your-pg" element={<ListYourPG />} />
+
+          {/* Legal Pages */}
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+          {/* Owner Traps & Onboarding */}
+          <Route
+            path="/list-your-pg"
+            element={
+              <OwnerOnboardingGuard>
+                <ListYourPG />
+              </OwnerOnboardingGuard>
+            }
+          />
+          <Route
+            path="/owner/pending"
+            element={
+              <OwnerPendingGuard>
+                <OwnerPending />
+              </OwnerPendingGuard>
+            }
+          />
+
+          {/* Student Protected Silo */}
+          <Route
+            path="/saved-pgs"
+            element={
+              <StudentOnlyGuard>
+                <SavedPGs />
+              </StudentOnlyGuard>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <StudentOnlyGuard>
+                <Dashboard />
+              </StudentOnlyGuard>
+            }
+          />
+
+          {/* Common Authenticated Notifications */}
           <Route
             path="/notifications"
             element={
-              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
+              <ProtectedRoute allowedRoles={['student', 'user', 'owner', 'admin']}>
                 <Notifications />
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/saved-pgs"
-            element={
-              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
-                <SavedPGs />
-              </ProtectedRoute>
-            }
-          />
 
-          {/* Protected — any logged-in user */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['user', 'owner', 'admin']}>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Protected — owner */}
+          {/* Owner Silo (Strictly Approved Owners) */}
           <Route
             path="/owner"
             element={
-              <ProtectedRoute allowedRoles={['owner', 'admin']}>
+              <OwnerRoute>
                 <OwnerDashboard />
-              </ProtectedRoute>
+              </OwnerRoute>
             }
           />
           <Route
             path="/owner/add"
             element={
-              <ProtectedRoute allowedRoles={['owner', 'admin']}>
+              <OwnerRoute>
                 <AddPG />
-              </ProtectedRoute>
+              </OwnerRoute>
             }
           />
           <Route
             path="/owner/edit/:id"
             element={
-              <ProtectedRoute allowedRoles={['owner', 'admin']}>
+              <OwnerRoute>
                 <EditPG />
-              </ProtectedRoute>
+              </OwnerRoute>
             }
           />
 
-          {/* Protected — admin */}
+          {/* Protected — Admin Portal */}
           <Route
             path="/admin"
             element={
@@ -175,7 +240,7 @@ export default function App() {
             <Route path="notifications" element={<AdminNotifications />} />
           </Route>
 
-          {/* 404 */}
+          {/* 404 Catch-All */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>

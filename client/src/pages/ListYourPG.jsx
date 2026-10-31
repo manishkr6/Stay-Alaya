@@ -22,6 +22,8 @@ import {
   Sliders,
   Send,
   Zap,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
@@ -39,7 +41,7 @@ function formatFileSize(bytes) {
 
 export default function ListYourPG() {
   const navigate = useNavigate();
-  const { currentUser, isAuthenticated, updateCurrentUser } = useAuth();
+  const { currentUser, isAuthenticated, loading, updateCurrentUser } = useAuth();
   const { requestOwner } = useData();
 
   const [fullName, setFullName] = useState(currentUser?.name || '');
@@ -170,18 +172,19 @@ export default function ListYourPG() {
         name: fullName.trim(),
         full_name: fullName.trim(),
         phone: cleanPhone,
+        role: 'owner',
+        owner_form_submitted: true,
+        admin_approved: false,
         kyc_status: safePropUrl || safeIdUrl ? 'pending' : 'none',
         ownerRequestStatus: 'pending',
         ...(safePropUrl ? { kyc_doc_url: safePropUrl } : {}),
         ...(safeIdUrl ? { kyc_id_doc_url: safeIdUrl } : {}),
       });
 
-      const hasUploadedAny = Boolean(safePropUrl || safeIdUrl);
       toast.success(
-        hasUploadedAny
-          ? 'Owner request submitted with documents! Properties will display the Verified Shield upon approval.'
-          : 'Owner request submitted! (You can upload documents anytime later to receive the Verified badge)'
+        'Owner onboarding details submitted! Your account is now under review by our administration team.'
       );
+      navigate('/owner/pending', { replace: true });
     } catch (e2) {
       toast.error(e2?.response?.data?.message || e2.message || 'Could not submit request');
     } finally {
@@ -208,6 +211,14 @@ export default function ListYourPG() {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center pt-20">
+        <div className="w-8 h-8 border-3 border-[#0f2547]/20 border-t-[#0f2547] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans pt-20 sm:pt-24 pb-28 sm:pb-16">
       <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-3 sm:py-6">
@@ -231,7 +242,9 @@ export default function ListYourPG() {
           </h1>
 
           <p className="text-slate-600 text-xs sm:text-sm leading-relaxed px-2">
-            Fill out the quick form below to request owner access and list your PG or rooms on Stay Aalaya. Direct student contacts with zero middleman.
+            {isAuthenticated
+              ? 'Fill out the quick form below to request owner access and list your PG or rooms on Stay Aalaya. Direct student contacts with zero middleman.'
+              : 'Join Stay Aalaya to list your PG or rooms across Sikkim. Log in or create your owner account to request hosting access.'}
           </p>
         </div>
 
@@ -241,23 +254,76 @@ export default function ListYourPG() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* FORM CONTAINER (Main Column) */}
           <div className="lg:col-span-8 bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl p-4 sm:p-7">
-            {/* Form Top Header */}
-            <div className="flex items-center justify-between pb-3.5 mb-5 border-b border-slate-100">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 size={18} className="text-[#f5a623]" /> Request Owner Access
-                </h2>
-                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                  Enter your contact details below to apply. Uploading verification documents is optional.
+            {!isAuthenticated ? (
+              /* ========================================================
+                  FALLBACK UI: Centered Empty-State Card for Guests
+                  ======================================================== */
+              <div className="text-center py-10 sm:py-14 px-4 sm:px-8">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-[#0f2547]/5 border border-[#0f2547]/10 text-[#0f2547] flex items-center justify-center mx-auto mb-5 shadow-xs">
+                  <div className="relative">
+                    <Building2 size={34} className="text-[#0f2547]" />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#f5a623] text-slate-950 flex items-center justify-center text-[10px] shadow-xs">
+                      <Lock size={11} className="stroke-[2.5]" />
+                    </span>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold mb-3 shadow-2xs">
+                  <Sparkles size={13} className="text-[#f5a623]" />
+                  <span>Host Authentication Required</span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                  Login Required
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto mb-7 leading-relaxed font-medium">
+                  Please login or register as an owner to list your property.
+                </p>
+
+                {/* Styled Call to Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className="w-full sm:w-auto flex-1 bg-[#0f2547] hover:bg-[#16335d] text-white py-2.5 sm:py-3 px-6 rounded-xl font-bold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-amber-400/20"
+                  >
+                    <LogIn size={15} className="text-[#f5a623]" />
+                    <span>Log In</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/signup')}
+                    className="w-full sm:w-auto flex-1 bg-[#f5a623] hover:bg-[#e09618] text-slate-950 py-2.5 sm:py-3 px-6 rounded-xl font-bold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus size={15} className="text-slate-950" />
+                    <span>Register</span>
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-slate-400 mt-6 flex items-center justify-center gap-1.5">
+                  <Lock size={12} className="text-slate-400" />
+                  <span>Free host onboarding • Zero middleman commissions</span>
                 </p>
               </div>
-              <span className="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Free Registration
-              </span>
-            </div>
+            ) : (
+              <>
+                {/* Form Top Header */}
+                <div className="flex items-center justify-between pb-3.5 mb-5 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Building2 size={18} className="text-[#f5a623]" /> Request Owner Access
+                    </h2>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                      Enter your contact details below to apply. Uploading verification documents is optional.
+                    </p>
+                  </div>
+                  <span className="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Free Registration
+                  </span>
+                </div>
 
-            {/* CASE 1: ALREADY APPROVED */}
-            {ownerStatus === 'approved' ? (
+                {/* CASE 1: ALREADY APPROVED */}
+                {ownerStatus === 'approved' ? (
               <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 p-5 sm:p-7 text-center sm:text-left">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-3">
                   <Sparkles size={13} className="text-emerald-600" /> OWNER ACCESS ACTIVE
@@ -604,7 +670,9 @@ export default function ListYourPG() {
                 </button>
               </form>
             )}
-          </div>
+          </>
+        )}
+      </div>
 
           {/* SIDEBAR COLUMN: Compact Host Perks & FAQ */}
           <div className="lg:col-span-4 space-y-4">

@@ -35,6 +35,13 @@ import { useData } from '../hooks/useData';
 import PGCard from '../components/ui/PGCard';
 import { SkeletonCard, EmptyState, Pagination } from '../components/ui/index.jsx';
 import { parseSearchQueryWithAI } from '../services/aiService';
+import {
+  isConversationalQuery,
+  fetchActiveLocations,
+  normalizeGender,
+  normalizeRoomType,
+  parseNormalSearchQuery,
+} from '../services/searchApi';
 
 const AMENITY_LIST = ['WiFi', 'Food', 'AC', 'Water', 'CCTV', 'Laundry', 'Parking', 'Gym'];
 
@@ -49,33 +56,9 @@ const AMENITY_ICONS = {
   Gym: Dumbbell,
 };
 
-const SIKKIM_AREAS = [
-  { id: '', label: 'All Sikkim' },
-  { id: 'Paljor Stadium', label: 'Paljor Stadium, Gangtok' },
-  { id: 'Gangtok', label: 'Gangtok (Central & ICFAI)' },
-  { id: 'Tadong', label: 'Tadong (SMIMS / SPU)' },
-  { id: 'Majitar', label: 'Majitar (SMIT Campus)' },
-  { id: '5th Mile', label: '5th Mile (Sikkim University)' },
-  { id: 'Deorali', label: 'Deorali Bazaar' },
-  { id: 'MG Marg', label: 'MG Marg Promenade' },
-  { id: 'Namchi', label: 'Namchi (South Sikkim)' },
-];
-
 const PER_PAGE = 9;
 
-const normalizeLocation = (loc) => {
-  if (!loc) return '';
-  const l = loc.toLowerCase().trim();
-  if (l.includes('icfai')) return 'Gangtok';
-  if (l.includes('manipal') || l.includes('smit')) return 'Majitar';
-  if (l.includes('smims') || l.includes('crh') || l.includes('spu')) return 'Tadong';
-  if (l.includes('sikkim university') || l.includes('su') || l.includes('5th mile') || l.includes('6th mile')) return '5th Mile';
-  if (l.includes('mg marg') || l.includes('mall road')) return 'MG Marg';
-  if (l.includes('ropeway')) return 'Deorali';
-  if (l.includes('paljor') || l.includes('stadium') || l.includes('development area')) return 'Paljor Stadium';
-  const match = SIKKIM_AREAS.find(c => c.id.toLowerCase() === l);
-  return match ? match.id : loc;
-};
+const normalizeLocation = (loc) => (loc ? String(loc).trim() : '');
 
 // 100% Real prompts matched directly to existing inventory in Sikkim
 const REAL_QUICK_PROMPTS = [
@@ -180,13 +163,21 @@ export default function FindPG() {
   }, [allPGs]);
 
   const getInitialFilters = (params) => {
+    const rawAiQuery = params.get('query');
+    const rawNormalQuery = params.get('q');
     const rawLoc = params.get('location') || params.get('locality') || '';
-    const loc = normalizeLocation(rawLoc);
+    const parsedNormal = rawNormalQuery ? parseNormalSearchQuery(rawNormalQuery) : null;
+
+    const loc = normalizeLocation(parsedNormal ? parsedNormal.location : rawLoc);
     const minP = params.get('minPrice') || '';
     const maxP = params.get('maxPrice') || '';
-    const room = params.get('roomType') || '';
-    const gen = params.get('gender') || '';
-    const ver = params.get('verified') === 'true';
+    const room = params.get('roomType')
+      ? (normalizeRoomType(params.get('roomType')) || params.get('roomType'))
+      : (parsedNormal?.roomType || '');
+    const gen = params.get('gender')
+      ? (normalizeGender(params.get('gender')) || params.get('gender'))
+      : (parsedNormal?.gender || '');
+    const ver = params.get('verified') === 'true' || Boolean(parsedNormal?.isVerified);
     return {
       location: loc,
       minPrice: minP,
@@ -194,20 +185,46 @@ export default function FindPG() {
       roomType: room,
       gender: gen,
       verifiedOnly: ver,
-      amenities: [],
+      amenities: parsedNormal?.amenities || [],
     };
   };
 
-  const hasIncomingAiQuery = Boolean(searchParams.get('query') || searchParams.get('q'));
+  const hasIncomingAiQuery = Boolean(searchParams.get('query'));
   const initialQuery = searchParams.get('query') || searchParams.get('q') || '';
-  const initialLoc = normalizeLocation(searchParams.get('location') || searchParams.get('locality') || '');
+  const initialLoc = normalizeLocation(searchParams.get('q') || searchParams.get('location') || searchParams.get('locality') || '');
 
   const [filters, setFilters] = useState(() => getInitialFilters(searchParams));
+  const [activeAreas, setActiveAreas] = useState([{ id: '', label: 'All Sikkim' }]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   const [sort, setSort] = useState('newest');
   const [searchQuery, setSearchQuery] = useState(initialQuery || initialLoc || '');
   const [isAiSearching, setIsAiSearching] = useState(hasIncomingAiQuery);
   const [aiAppliedTag, setAiAppliedTag] = useState(null);
+  const [suggestAiBanner, setSuggestAiBanner] = useState(false);
   const lastProcessedParamsRef = useRef('');
+
+  // Dynamic Location Filter Population - strictly database-driven from real PG listings
+  useEffect(() => {
+    let isMounted = true;
+    const loadLocations = async () => {
+      setLoadingLocations(true);
+      try {
+        const locations = await fetchActiveLocations();
+        if (isMounted && Array.isArray(locations) && locations.length > 0) {
+          setActiveAreas(locations);
+        }
+      } catch (err) {
+        console.error('Failed to load active locations:', err);
+      } finally {
+        if (isMounted) setLoadingLocations(false);
+      }
+    };
+
+    loadLocations();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -221,20 +238,28 @@ export default function FindPG() {
     if (currentParamStr === lastProcessedParamsRef.current) return;
     lastProcessedParamsRef.current = currentParamStr;
 
-    const rawQuery = searchParams.get('query') || searchParams.get('q');
+    const rawAiQuery = searchParams.get('query');
+    const rawNormalQuery = searchParams.get('q');
     const rawLoc = searchParams.get('location') || searchParams.get('locality') || '';
-    const loc = normalizeLocation(rawLoc);
-    const minP = searchParams.get('minPrice') || '';
-    const maxP = searchParams.get('maxPrice') || '';
-    const room = searchParams.get('roomType') || '';
-    const gen = searchParams.get('gender') || '';
-    const ver = searchParams.get('verified') === 'true';
 
-    if (rawQuery && rawQuery.trim()) {
-      const decoded = decodeURIComponent(rawQuery).trim();
+    if (rawAiQuery && rawAiQuery.trim()) {
+      const decoded = decodeURIComponent(rawAiQuery).trim();
       setSearchQuery(decoded);
       handleAiSearch(decoded, false);
     } else {
+      const parsedNormal = rawNormalQuery ? parseNormalSearchQuery(rawNormalQuery) : null;
+      const loc = normalizeLocation(parsedNormal ? parsedNormal.location : rawLoc);
+      const minP = searchParams.get('minPrice') || '';
+      const maxP = searchParams.get('maxPrice') || '';
+      const room = searchParams.get('roomType')
+        ? (normalizeRoomType(searchParams.get('roomType')) || searchParams.get('roomType'))
+        : (parsedNormal?.roomType || '');
+      const gen = searchParams.get('gender')
+        ? (normalizeGender(searchParams.get('gender')) || searchParams.get('gender'))
+        : (parsedNormal?.gender || '');
+      const ver = searchParams.get('verified') === 'true' || Boolean(parsedNormal?.isVerified);
+      const amenities = parsedNormal?.amenities || [];
+
       setIsAiSearching(false);
       setFilters({
         location: loc,
@@ -243,10 +268,12 @@ export default function FindPG() {
         roomType: room,
         gender: gen,
         verifiedOnly: ver,
-        amenities: [],
+        amenities,
       });
       setAiAppliedTag(null);
-      if (loc) {
+      if (rawNormalQuery) {
+        setSearchQuery(rawNormalQuery);
+      } else if (loc) {
         setSearchQuery(loc);
       } else {
         setSearchQuery('');
@@ -258,69 +285,13 @@ export default function FindPG() {
     let result = [...allPGs];
 
     if (filters.location) {
-      const loc = filters.location.toLowerCase();
-      const isIcfai = loc.includes('icfai');
-      const isManipal = loc.includes('manipal') || loc.includes('majitar') || loc.includes('smit');
-      const isTadong = loc.includes('tadong');
-      const isPaljor = loc.includes('paljor') || loc.includes('development area') || loc.includes('stadium');
-
+      const loc = filters.location.toLowerCase().trim();
       result = result.filter((pg) => {
         const city = (pg.location?.city || pg.city || '').toLowerCase();
         const area = (pg.location?.area || pg.locality || pg.area || '').toLowerCase();
         const title = (pg.title || '').toLowerCase();
         const addr = (pg.location?.address || pg.address || '').toLowerCase();
         const desc = (pg.description || '').toLowerCase();
-
-        if (isIcfai) {
-          if (
-            city.includes('gangtok') ||
-            area.includes('gangtok') ||
-            area.includes('sichey') ||
-            area.includes('ranka') ||
-            title.includes('icfai') ||
-            addr.includes('icfai') ||
-            desc.includes('icfai')
-          ) {
-            return true;
-          }
-        }
-
-        if (isManipal) {
-          if (
-            area.includes('majitar') ||
-            city.includes('majitar') ||
-            title.includes('smit') ||
-            title.includes('manipal') ||
-            addr.includes('smit') ||
-            addr.includes('manipal') ||
-            desc.includes('smit') ||
-            desc.includes('manipal')
-          ) {
-            return true;
-          }
-        }
-
-        if (isTadong) {
-          if (
-            area.includes('tadong') ||
-            title.includes('tadong') ||
-            desc.includes('tadong') ||
-            addr.includes('tadong')
-          ) {
-            return true;
-          }
-        }
-
-        if (isPaljor) {
-          if (
-            addr.includes('paljor') ||
-            addr.includes('development area') ||
-            desc.includes('paljor') ||
-            desc.includes('development area')
-          ) {
-            return true;
-          }
-        }
 
         return (
           city.includes(loc) ||
@@ -344,10 +315,14 @@ export default function FindPG() {
       const max = Number(filters.maxPrice);
       if (!isNaN(max) && max > 0) result = result.filter((pg) => pg.price <= max);
     }
-    if (filters.roomType) {
-      result = result.filter((pg) => pg.roomType === filters.roomType);
+    if (filters.roomType && filters.roomType.trim()) {
+      const targetRoom = normalizeRoomType(filters.roomType) || filters.roomType.trim().toLowerCase();
+      result = result.filter((pg) => {
+        const pgRoom = normalizeRoomType(pg.roomType || pg.room_type) || (pg.roomType || pg.room_type || '').trim().toLowerCase();
+        return pgRoom === targetRoom;
+      });
     }
-    if (filters.gender) {
+    if (filters.gender && filters.gender.trim()) {
       const target = filters.gender.toLowerCase();
       if (target === 'homestay') {
         result = result.filter((pg) => {
@@ -356,16 +331,28 @@ export default function FindPG() {
           return t.includes('homestay') || d.includes('homestay');
         });
       } else {
-        result = result.filter((pg) => {
-          const pref = (pg.genderPreference || '').toLowerCase();
-          return pref === target || pref === 'co-ed' || target === 'co-ed';
-        });
+        const normalizedTarget = normalizeGender(filters.gender);
+        if (normalizedTarget) {
+          result = result.filter((pg) => {
+            const pref = normalizeGender(pg.genderPreference || pg.gender_preference);
+            return pref === normalizedTarget;
+          });
+        } else {
+          const targetKey = target.replace(/[-_\s]+/g, '');
+          result = result.filter((pg) => {
+            const pref = (pg.genderPreference || pg.gender_preference || '').toLowerCase().replace(/[-_\s]+/g, '');
+            return pref === targetKey;
+          });
+        }
       }
     }
-    if (filters.amenities.length > 0) {
-      result = result.filter((pg) =>
-        filters.amenities.every((a) => pg.amenities?.includes(a))
-      );
+    if (filters.amenities && filters.amenities.length > 0) {
+      result = result.filter((pg) => {
+        const pgAmenities = (pg.amenities || []).map((a) => String(a).toLowerCase().trim());
+        return filters.amenities.every((a) =>
+          pgAmenities.includes(String(a).toLowerCase().trim())
+        );
+      });
     }
 
     switch (sort) {
@@ -423,6 +410,7 @@ export default function FindPG() {
     setSearchQuery('');
     setAiAppliedTag(null);
     setIsAiSearching(false);
+    setSuggestAiBanner(false);
     lastProcessedParamsRef.current = '';
     setSearchParams({});
     setPage(1);
@@ -432,38 +420,73 @@ export default function FindPG() {
   const handleNormalSearch = (e) => {
     if (e) e.preventDefault();
     const query = searchQuery.trim();
-    if (!query) {
-      clearFilters();
-      return;
-    }
 
-    const isNaturalQuery = /(?:under|below|budget|with|wifi|wi-fi|food|geyser|water|boys|girls|single|double|triple|near|icfai|smit)/i.test(
-      query
-    );
-    if (isNaturalQuery) {
-      handleAiSearch(query);
-      return;
-    }
-
-    const loc = normalizeLocation(query);
+    // Strictly bypass Gemini AI on Normal Search
     setAiAppliedTag(null);
     setIsAiSearching(false);
-    setFilters({
-      location: loc,
-      minPrice: '',
-      maxPrice: '',
-      roomType: '',
-      gender: '',
-      verifiedOnly: false,
-      amenities: [],
-    });
     setPage(1);
 
-    const params = new URLSearchParams();
-    if (loc) params.set('location', loc);
-    lastProcessedParamsRef.current = params.toString();
-    setSearchParams(params);
-    toast.success(`Showing results for "${loc || query}"`);
+    if (!query) {
+      setFilters({
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        roomType: '',
+        gender: '',
+        verifiedOnly: false,
+        amenities: [],
+      });
+      lastProcessedParamsRef.current = '';
+      setSearchParams({});
+      setSuggestAiBanner(false);
+      return;
+    }
+
+    // Natural Language & Hindi Detection (Smart Routing prompt)
+    if (isConversationalQuery(query)) {
+      setSuggestAiBanner(true);
+      toast('Sentence detected! Click the AI Search suggestion above for best results.', {
+        icon: '✨',
+      });
+      return;
+    }
+
+    setSuggestAiBanner(false);
+
+    // Parse query to extract categories (Gender, Room Type, Verified, Amenities) and isolated Location
+    const { location, gender, roomType, isVerified, amenities } = parseNormalSearchQuery(query);
+
+    // 1. Explicitly clear previous stale filters, and apply ONLY the newly extracted filters
+    // (Location, plus any detected categorical terms like 'verified', 'Coad', 'Boys', 'Single')
+    const freshFilters = {
+      location: location || '',
+      minPrice: '',
+      maxPrice: '',
+      roomType: roomType || '',
+      gender: gender || '',
+      verifiedOnly: Boolean(isVerified),
+      amenities: amenities || [],
+    };
+
+    setFilters(freshFilters);
+
+    // 2. Wipe out old URL search parameters completely so URL only contains the fresh query
+    const newParams = new URLSearchParams();
+    newParams.set('q', query);
+    if (freshFilters.location) newParams.set('location', freshFilters.location);
+    if (freshFilters.gender) newParams.set('gender', freshFilters.gender);
+    if (freshFilters.roomType) newParams.set('roomType', freshFilters.roomType);
+    if (freshFilters.verifiedOnly) newParams.set('verified', 'true');
+    lastProcessedParamsRef.current = newParams.toString();
+    setSearchParams(newParams);
+
+    const parts = [];
+    if (freshFilters.location) parts.push(`📍 ${freshFilters.location}`);
+    if (freshFilters.verifiedOnly) parts.push('🛡️ Verified');
+    if (freshFilters.gender) parts.push(`👤 ${freshFilters.gender}`);
+    if (freshFilters.roomType) parts.push(`🛏️ ${freshFilters.roomType}`);
+    if (freshFilters.amenities.length > 0) parts.push(`✨ ${freshFilters.amenities.join(', ')}`);
+    toast.success(`Standard search for ${parts.join(' • ') || `"${query}"`}`);
   };
 
   const handleAiSearch = async (queryOverride, syncParams = true) => {
@@ -474,6 +497,26 @@ export default function FindPG() {
       setSearchQuery(queryOverride);
     }
 
+    // 1. Explicitly clear/reset all active UI filters & URL parameters BEFORE applying new AI search query
+    setSuggestAiBanner(false);
+    const RESET_FILTERS = {
+      location: '',
+      minPrice: '',
+      maxPrice: '',
+      roomType: '',
+      gender: '',
+      verifiedOnly: false,
+      amenities: [],
+    };
+    setFilters(RESET_FILTERS);
+    setAiAppliedTag(null);
+    setPage(1);
+
+    if (syncParams) {
+      lastProcessedParamsRef.current = '';
+      setSearchParams({});
+    }
+
     setIsAiSearching(true);
     try {
       const parsed = await parseSearchQueryWithAI(textToSearch);
@@ -481,37 +524,65 @@ export default function FindPG() {
 
       const isVerifiedSearch = /verified|verification|14-point/i.test(textToSearch);
 
-      const newFilters = {
+      // 2. Construct fresh filters strictly from the new search query (NO stale filters carried over)
+      const extractedGender = normalizeGender(parsed.gender || parsed.genderPreference);
+      const extractedRoomType = normalizeRoomType(parsed.roomType);
+
+      const freshFilters = {
         location: loc,
-        minPrice: '',
+        minPrice: parsed.minPrice ? String(parsed.minPrice) : '',
         maxPrice: parsed.maxPrice ? String(parsed.maxPrice) : '',
-        roomType: parsed.roomType || '',
-        gender: parsed.genderPreference || '',
+        roomType: extractedRoomType || '',
+        gender: extractedGender || '',
         verifiedOnly: isVerifiedSearch,
-        amenities: parsed.amenities || [],
+        amenities: Array.isArray(parsed.amenities) ? parsed.amenities : [],
       };
 
-      setFilters(newFilters);
+      setFilters(freshFilters);
       setPage(1);
 
       if (syncParams) {
         const params = new URLSearchParams();
-        if (newFilters.location) params.set('location', newFilters.location);
-        if (newFilters.maxPrice) params.set('maxPrice', newFilters.maxPrice);
-        if (newFilters.gender) params.set('gender', newFilters.gender);
-        if (newFilters.roomType) params.set('roomType', newFilters.roomType);
-        if (newFilters.verifiedOnly) params.set('verified', 'true');
+        params.set('q', textToSearch);
+        if (freshFilters.location) params.set('location', freshFilters.location);
+        if (freshFilters.minPrice) params.set('minPrice', freshFilters.minPrice);
+        if (freshFilters.maxPrice) params.set('maxPrice', freshFilters.maxPrice);
+        if (freshFilters.gender) params.set('gender', freshFilters.gender);
+        if (freshFilters.roomType) params.set('roomType', freshFilters.roomType);
+        if (freshFilters.verifiedOnly) params.set('verified', 'true');
         lastProcessedParamsRef.current = params.toString();
         setSearchParams(params);
       }
 
       const summaryParts = [];
       if (loc) summaryParts.push(`📍 ${loc}`);
-      if (parsed.genderPreference) summaryParts.push(`👤 ${parsed.genderPreference}`);
-      if (parsed.roomType) summaryParts.push(`🛏️ ${parsed.roomType}`);
-      if (parsed.maxPrice) summaryParts.push(`💰 Max ₹${Number(parsed.maxPrice).toLocaleString('en-IN')}`);
+      if (freshFilters.gender) {
+        summaryParts.push(`👤 ${freshFilters.gender}`);
+      }
+      if (freshFilters.roomType) {
+        summaryParts.push(`🛏️ ${freshFilters.roomType}`);
+      }
+      if (freshFilters.maxPrice) {
+        summaryParts.push(`💰 Up to ₹${Number(freshFilters.maxPrice).toLocaleString('en-IN')}`);
+      }
+      if (freshFilters.minPrice) {
+        summaryParts.push(`💰 Above ₹${Number(freshFilters.minPrice).toLocaleString('en-IN')}`);
+      }
+      if (freshFilters.amenities.length > 0) {
+        summaryParts.push(`✨ ${freshFilters.amenities.join(', ')}`);
+      }
+      if (freshFilters.verifiedOnly) {
+        summaryParts.push(`🛡️ Verified`);
+      }
+      if (freshFilters.minPrice && freshFilters.maxPrice) {
+        summaryParts.push(`💰 ₹${Number(freshFilters.minPrice).toLocaleString('en-IN')} - ₹${Number(freshFilters.maxPrice).toLocaleString('en-IN')}`);
+      } else if (freshFilters.maxPrice) {
+        summaryParts.push(`💰 Max ₹${Number(freshFilters.maxPrice).toLocaleString('en-IN')}`);
+      } else if (freshFilters.minPrice) {
+        summaryParts.push(`💰 Min ₹${Number(freshFilters.minPrice).toLocaleString('en-IN')}`);
+      }
       if (isVerifiedSearch) summaryParts.push(`🛡️ Verified`);
-      if (parsed.amenities?.length) summaryParts.push(`✨ ${parsed.amenities.join(', ')}`);
+      if (freshFilters.amenities?.length) summaryParts.push(`✨ ${freshFilters.amenities.join(', ')}`);
 
       setAiAppliedTag(summaryParts.join(' • ') || textToSearch);
     } catch (err) {
@@ -746,6 +817,36 @@ export default function FindPG() {
             </div>
           </div>
 
+          {/* Smart Routing AI Suggestion Prompt (when natural language or sentence is detected in Normal Search) */}
+          {suggestAiBanner && (
+            <div className="mt-3 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-indigo-500/15 border border-amber-400 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#0f2547] text-[#f5a623] flex items-center justify-center shrink-0 shadow-2xs font-bold">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">
+                    It looks like you're typing a sentence!
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-slate-600 font-medium">
+                    Standard search matches location keywords. Use <strong className="text-[#0f2547]">AI Search</strong> for natural conversational queries in English, Hindi & Hinglish.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestAiBanner(false);
+                  handleAiSearch();
+                }}
+                className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-black text-slate-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-xs active:scale-95 cursor-pointer"
+              >
+                <span>Click here to use AI Search instead!</span>
+                <Sparkles size={14} />
+              </button>
+            </div>
+          )}
+
           {/* Quick Prompts - Horizontal Scrollable Carousel */}
           <div className="mt-2.5 sm:mt-3.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-0.5 scroll-smooth">
             <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 font-bold text-[10px] sm:text-[11px]">
@@ -869,10 +970,11 @@ export default function FindPG() {
                       setSearchQuery(e.target.value);
                     }}
                     className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-amber-400/40 focus:border-[#f5a623] outline-none"
+                    disabled={loadingLocations && activeAreas.length <= 1}
                   >
-                    {SIKKIM_AREAS.map((c) => (
+                    {activeAreas.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.label} {c.id === '' ? `(${realStats.total})` : ''}
+                        {c.label} {c.count !== undefined ? `(${c.count})` : (c.id === '' ? `(${realStats.total})` : '')}
                       </option>
                     ))}
                   </select>
@@ -1008,29 +1110,35 @@ export default function FindPG() {
                     { id: 'Single', label: 'Single', count: realStats.roomCounts.Single },
                     { id: 'Double', label: 'Double', count: realStats.roomCounts.Double },
                     { id: 'Triple', label: 'Triple', count: realStats.roomCounts.Triple },
-                  ].map((rt) => (
-                    <button
-                      key={rt.id}
-                      type="button"
-                      onClick={() => setFilter('roomType', rt.id)}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        filters.roomType === rt.id
-                          ? 'bg-[#0f2547] text-[#f5a623] border-[#0f2547] shadow-xs'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{rt.label}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          filters.roomType === rt.id
-                            ? 'bg-white/20 text-white'
-                            : 'bg-slate-200 text-slate-600'
+                  ].map((rt) => {
+                    const isSelected = rt.id === ''
+                      ? !filters.roomType
+                      : (filters.roomType === rt.id || normalizeRoomType(filters.roomType) === rt.id);
+
+                    return (
+                      <button
+                        key={rt.id}
+                        type="button"
+                        onClick={() => setFilter('roomType', rt.id)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          isSelected
+                            ? 'bg-[#0f2547] text-[#f5a623] border-[#0f2547] shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
-                        {rt.count}
-                      </span>
-                    </button>
-                  ))}
+                        <span>{rt.label}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {rt.count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </FilterSection>
 
@@ -1042,29 +1150,35 @@ export default function FindPG() {
                     { id: 'Boys', label: 'Boys 👨', count: realStats.genderCounts.Boys },
                     { id: 'Girls', label: 'Girls 👩', count: realStats.genderCounts.Girls },
                     { id: 'Co-ed', label: 'Co-ed 👥', count: realStats.genderCounts['Co-ed'] },
-                  ].map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => setFilter('gender', g.id)}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        filters.gender === g.id
-                          ? 'bg-[#0f2547] text-[#f5a623] border-[#0f2547] shadow-xs'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{g.label}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          filters.gender === g.id
-                            ? 'bg-white/20 text-white'
-                            : 'bg-slate-200 text-slate-600'
+                  ].map((g) => {
+                    const isSelected = g.id === ''
+                      ? !filters.gender
+                      : (filters.gender === g.id || normalizeGender(filters.gender) === g.id);
+
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setFilter('gender', g.id)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          isSelected
+                            ? 'bg-[#0f2547] text-[#f5a623] border-[#0f2547] shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
-                        {g.count}
-                      </span>
-                    </button>
-                  ))}
+                        <span>{g.label}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {g.count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </FilterSection>
 
@@ -1389,14 +1503,40 @@ export default function FindPG() {
                 ))}
               </div>
             ) : paginated.length === 0 ? (
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center shadow-xs">
+              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 text-center shadow-xs">
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 text-[#f5a623] flex items-center justify-center mx-auto mb-4 border border-amber-200/60 shadow-xs">
                   <Search size={28} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">No Matching PGs Found</h3>
-                <p className="text-slate-600 text-sm max-w-md mx-auto mb-6">
-                  We couldn't find any listings matching all your selected filters. Try broadening your budget or resetting some amenity filters.
+                <p className="text-slate-600 text-sm max-w-md mx-auto mb-5">
+                  We couldn't find any listings matching your current search. Normal Search looks for exact keywords.
                 </p>
+
+                {/* AI Search Suggestion Box */}
+                <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#0f2547]/5 via-amber-500/10 to-[#0f2547]/5 border border-amber-300/80 max-w-lg mx-auto text-left shadow-2xs">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0f2547] text-[#f5a623] flex items-center justify-center shrink-0 shadow-xs font-bold">
+                      <Sparkles size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">
+                        Try Stay Aalaya AI Search!
+                      </h4>
+                      <p className="text-[11px] sm:text-xs text-slate-600 font-medium mt-0.5">
+                        Our AI understands conversational English, Hindi, Hinglish, college landmarks (ICFAI, SMIT), and handles typos effortlessly.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleAiSearch(searchQuery || undefined)}
+                        disabled={isAiSearching}
+                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold text-[#f5a623] bg-[#0f2547] hover:bg-[#0b192c] transition-all shadow-xs active:scale-95 cursor-pointer border border-amber-400/50"
+                      >
+                        <Sparkles size={13} className="text-[#f5a623]" />
+                        <span>Search with AI {searchQuery ? `for "${searchQuery}"` : 'instead'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex items-center justify-center gap-3 flex-wrap">
                   <button

@@ -79,7 +79,7 @@ export default function AuthCallback() {
         // 5. Query user profile to determine role and block status
         const { data: profile } = await supabase
           .from("profiles")
-          .select("id, role, is_blocked, full_name, name")
+          .select("id, role, is_blocked, full_name, name, owner_form_submitted, admin_approved")
           .eq("id", session.user.id)
           .maybeSingle();
 
@@ -106,11 +106,17 @@ export default function AuthCallback() {
           id: "auth-welcome",
         });
 
-        // 6. Direct user cleanly based on role
+        // 6. Direct user cleanly based on role & trap status
         if (role === "admin") {
           navigate("/admin", { replace: true });
         } else if (role === "owner") {
-          navigate("/owner", { replace: true });
+          if (!profile?.owner_form_submitted) {
+            navigate("/list-your-pg", { replace: true });
+          } else if (!profile?.admin_approved) {
+            navigate("/owner/pending", { replace: true });
+          } else {
+            navigate("/owner", { replace: true });
+          }
         } else {
           navigate("/dashboard?verified=true", { replace: true });
         }
